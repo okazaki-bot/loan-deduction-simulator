@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>住宅ローン控除 シミュレーター</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>住宅ローン控除 シミュレーター</h1>
+    <p class="subtitle">令和8年度税制改正対応（2026年1月〜2030年12月入居・控除率0.7%・控除期間13年）</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2 class="panel-title">① 源泉徴収票の入力</h2>
+      <p class="hint">世帯主と配偶者（共働き）それぞれの源泉徴収票の数字を入力してください。空欄は0として計算します。</p>
+      <div id="slips" class="slips"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">② 住宅・ローンの入力（借り入れ比率）</h2>
+      <div id="loan"></div>
+    </section>
+
+    <section class="panel options">
+      <label class="chk">
+        <input type="checkbox" id="opt-uprate-fix" checked>
+        将来収入のUP率を13年間すべてに適用する（推奨・元Excelの11〜13年目のUP率抜けを修正）
+      </label>
+    </section>
+
+    <div class="actions">
+      <button id="calc-btn" class="calc-btn">計算する</button>
+      <span class="auto-note">入力すると自動で再計算されます</span>
+    </div>
+
+    <section class="panel" id="output-panel">
+      <h2 class="panel-title">③ 住宅ローン減税額 一覧表</h2>
+      <div id="output"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>※このシミュレーションは将来の減税額を概算で予想するもので、実際とは異なる場合があります。実際には年度末のローン残高・家族構成・源泉徴収の数字に基づき計算し、確定申告を行ってください。</p>
+    <p>※適用要件: 合計所得金額2,000万円以下（床面積40㎡以上50㎡未満は1,000万円以下）。新築の一般（その他）住宅は2026年以降入居では対象外。</p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# 協会の有償商品そのもの・その内部数式ダンプは公開しない
+test/oracle/src.xlsm
+test/oracle/src.xlsx
+test/oracle/work/
+test/oracle/*_out.json
+test/oracle/random_cases.json
+test/oracle/edge_cases.json
+test/profile/
+docs/raw-cells/
+# OS/エディタ
+.DS_Store
+node_modules/
+.claude/
+test/oracle/out.json

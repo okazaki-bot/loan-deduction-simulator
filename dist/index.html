@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>住宅ローン控除 シミュレーター</title>
+  <style>
+:root {
+  --ink: #1a1a1a;
+  --line: #6b7280;
+  --line-strong: #374151;
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --accent: #0b6b3a;
+  --accent-soft: #e7f3ec;
+  --head: #1d4ed8;
+  --spouse: #b45309;
+  --readonly-bg: #f0f4f8;
+  --danger: #b91c1c;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.app-header {
+  background: var(--accent);
+  color: #fff;
+  padding: 18px 24px;
+}
+.app-header h1 { margin: 0; font-size: 22px; }
+.app-header .subtitle { margin: 4px 0 0; font-size: 12px; opacity: .9; }
+
+main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid #e2e5ea;
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.panel-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent-soft);
+  padding-bottom: 6px;
+}
+.hint { font-size: 12px; color: #555; margin: 0 0 12px; }
+
+/* ---- 源泉徴収票 slips ---- */
+.slips { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .slips { grid-template-columns: 1fr; } }
+
+.slip {
+  border: 2px solid var(--line-strong);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.slip-head {
+  padding: 6px 10px;
+  font-weight: 700;
+  color: #fff;
+  font-size: 14px;
+}
+.slip.head .slip-head { background: var(--head); }
+.slip.spouse .slip-head { background: var(--spouse); }
+
+.slip-sub {
+  background: #eef1f5;
+  font-size: 11px;
+  font-weight: 700;
+  color: #444;
+  padding: 3px 10px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.box-grid { display: grid; gap: 0; }
+.fld {
+  display: grid;
+  grid-template-columns: 1fr 128px;
+  align-items: center;
+  border-bottom: 1px solid #d7dbe0;
+  padding: 0;
+}
+.fld:last-child { border-bottom: none; }
+.fld > label {
+  font-size: 11.5px;
+  padding: 5px 8px;
+  color: #333;
+}
+.fld > label small { color: #888; font-size: 10px; display: block; }
+.fld input[type="number"],
+.fld select {
+  border: none;
+  border-left: 1px solid #d7dbe0;
+  padding: 6px 8px;
+  font-size: 13px;
+  text-align: right;
+  width: 100%;
+  background: #fff;
+  font-family: inherit;
+}
+.fld select { text-align: left; }
+.fld input:focus, .fld select:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.fld.computed input { background: var(--readonly-bg); color: var(--accent); font-weight: 700; }
+.fld .unit { font-size: 10px; color: #999; }
+
+.fld-row3 { grid-template-columns: 1fr 64px 64px; }
+.fld-row3 input { border-left: 1px solid #d7dbe0; }
+
+.chk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; padding: 6px 10px; }
+.chk { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.chk input { margin: 0; }
+
+/* ---- loan section ---- */
+.loan-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 22px; }
+@media (max-width: 760px) { .loan-grid { grid-template-columns: 1fr; } }
+.loan-sub { grid-column: 1 / -1; font-weight: 700; color: var(--accent); font-size: 13px; margin-top: 6px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 3px;}
+.lf { display: grid; grid-template-columns: 1fr 150px; align-items: center; gap: 8px; }
+.lf label { font-size: 12.5px; }
+.lf label small { color:#888; display:block; font-size: 10px; }
+.lf input, .lf select { padding: 6px 8px; border: 1px solid #c3c9d2; border-radius: 5px; font-size: 13px; text-align: right; font-family: inherit; }
+.lf select { text-align: left; }
+.lf .with-unit { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.lf .with-unit input { width: 100%; }
+.lf .u { font-size: 11px; color: #888; white-space: nowrap; }
+
+/* ---- options / actions ---- */
+.options .chk { font-size: 13px; }
+.actions { display: flex; align-items: center; gap: 14px; margin: 4px 0 20px; }
+.calc-btn {
+  background: var(--accent); color: #fff; border: none; border-radius: 8px;
+  padding: 11px 30px; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.calc-btn:hover { background: #095b31; }
+.auto-note { font-size: 11px; color: #888; }
+
+/* ---- output ---- */
+.summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+@media (max-width: 760px) { .summary-cards { grid-template-columns: repeat(2,1fr); } }
+.card { border: 1px solid #e2e5ea; border-radius: 8px; padding: 12px; text-align: center; background: var(--accent-soft); }
+.card .card-h { font-size: 12px; color: #555; }
+.card .card-v { font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+.card .card-sub { font-size: 10px; color: #888; }
+
+.result-table-wrap { overflow-x: auto; }
+table.result { border-collapse: collapse; width: 100%; font-size: 12px; min-width: 720px; }
+table.result th, table.result td { border: 1px solid #d7dbe0; padding: 5px 6px; text-align: right; }
+table.result thead th { background: #eef1f5; text-align: center; font-weight: 700; }
+table.result .grp-head { background: var(--head); color: #fff; }
+table.result .grp-spouse { background: var(--spouse); color: #fff; }
+table.result td.rowlabel, table.result th.rowlabel { text-align: center; background: #f7f8fa; font-weight: 600; }
+table.result tr.total td { background: var(--accent-soft); font-weight: 700; color: var(--accent); }
+.selected-note { font-size: 12px; color: #555; margin: 4px 0 12px; }
+
+.app-footer { max-width: 1180px; margin: 0 auto; padding: 0 16px 40px; font-size: 11px; color: #777; }
+.app-footer p { margin: 4px 0; }
+
+@media print {
+  body { background: #fff; font-size: 11px; }
+  .actions, .app-header .subtitle, .options { display: none; }
+  .panel { box-shadow: none; break-inside: avoid; }
+}
+
+</style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>住宅ローン控除 シミュレーター</h1>
+    <p class="subtitle">令和8年度税制改正対応（2026年1月〜2030年12月入居・控除率0.7%・控除期間13年）</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2 class="panel-title">① 源泉徴収票の入力</h2>
+      <p class="hint">世帯主と配偶者（共働き）それぞれの源泉徴収票の数字を入力してください。空欄は0として計算します。</p>
+      <div id="slips" class="slips"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">② 住宅・ローンの入力（借り入れ比率）</h2>
+      <div id="loan"></div>
+    </section>
+
+    <section class="panel options">
+      <label class="chk">
+        <input type="checkbox" id="opt-uprate-fix" checked>
+        将来収入のUP率を13年間すべてに適用する（推奨・元Excelの11〜13年目のUP率抜けを修正）
+      </label>
+    </section>
+
+    <div class="actions">
+      <button id="calc-btn" class="calc-btn">計算する</button>
+      <span class="auto-note">入力すると自動で再計算されます</span>
+    </div>
+
+    <section class="panel" id="output-panel">
+      <h2 class="panel-title">③ 住宅ローン減税額 一覧表</h2>
+      <div id="output"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>※このシミュレーションは将来の減税額を概算で予想するもので、実際とは異なる場合があります。実際には年度末のローン残高・家族構成・源泉徴収の数字に基づき計算し、確定申告を行ってください。</p>
+    <p>※適用要件: 合計所得金額2,000万円以下（床面積40㎡以上50㎡未満は1,000万円以下）。新築の一般（その他）住宅は2026年以降入居では対象外。</p>
+  </footer>
+
+  <script>
+// === 自動生成バンドル（build.mjs） 編集しないこと ===
+
+// ---- js/calc/excel.js ----
+// excel.js — Excelの丸め・財務関数を忠実に再現する低レベルユーティリティ。
+// 住宅ローン控除計算ソフト(Excel版)のポート。ここが1円でもずれると全体がずれるため、
+// Excelの ROUNDDOWN/ROUNDUP/TRUNC/FLOOR/PMT/PPMT/IPMT/FV と同じ挙動にすること。
+
+// --- 丸め系 -------------------------------------------------------------
+
+// 桁 digits の 10^(-digits) 単位。ROUNDDOWN(1234,-3)=1000 → factor=1000。
+function pow10(digits) {
+  return Math.pow(10, digits);
+}
+
+// Excel ROUNDDOWN: 0方向へ切り捨て（絶対値を小さくする）。digits<0 で桁上げ単位。
+function ROUNDDOWN(x, digits) {
+  const f = pow10(digits);
+  return Math.sign(x) * Math.floor(Math.abs(x) * f) / f;
+}
+
+// Excel ROUNDUP: 0から離れる方向へ切り上げ。
+function ROUNDUP(x, digits) {
+  const f = pow10(digits);
+  return Math.sign(x) * Math.ceil(Math.abs(x) * f) / f;
+}
+
+// Excel ROUND: 四捨五入（0.5は0から離れる方向）。
+function ROUND(x, digits) {
+  const f = pow10(digits);
+  return Math.sign(x) * Math.round(Math.abs(x) * f) / f;
+}
+
+// Excel TRUNC(x, digits): 0方向へ切り捨て。ROUNDDOWNと同義（負値の扱いも同じ）。
+function TRUNC(x, digits = 0) {
+  return ROUNDDOWN(x, digits);
+}
+
+// Excel FLOOR(x, significance): significance の倍数へ、0方向（負の有効数字なら注意）。
+// 本ソフトでは FLOOR(D3*1.1, 1) の用途のみ＝1円単位で切り捨て。
+function FLOOR(x, significance) {
+  if (significance === 0) return 0;
+  return Math.floor(x / significance) * significance;
+}
+
+// --- 財務関数（すべて type=0: 期末払い、fv=0 を既定） ------------------
+// rate は「1期あたり利率」（例: 年1.43%・月払いなら 0.0143/12）。
+
+// Excel PMT(rate, nper, pv, fv=0, type=0): 毎期支払額（符号は Excel と同じ）。
+function PMT(rate, nper, pv, fv = 0, type = 0) {
+  if (nper === 0) return 0;
+  if (rate === 0) return -(pv + fv) / nper;
+  const pvif = Math.pow(1 + rate, nper);
+  return (-rate * (pv * pvif + fv)) / ((pvif - 1) * (1 + rate * type));
+}
+
+// Excel FV(rate, nper, pmt, pv=0, type=0)
+function FV(rate, nper, pmt, pv = 0, type = 0) {
+  if (rate === 0) return -(pv + pmt * nper);
+  const pvif = Math.pow(1 + rate, nper);
+  return -(pv * pvif + pmt * (1 + rate * type) * (pvif - 1) / rate);
+}
+
+// Excel IPMT(rate, per, nper, pv, fv=0, type=0): per 期の利息分。
+function IPMT(rate, per, nper, pv, fv = 0, type = 0) {
+  const pmt = PMT(rate, nper, pv, fv, type);
+  let ipmt;
+  if (per === 1) {
+    ipmt = type === 1 ? 0 : -pv;
+  } else {
+    // 期首残高 = FV(rate, per-1, pmt, pv, type)。type=1 のときの補正込み。
+    if (type === 1) {
+      ipmt = FV(rate, per - 2, pmt, pv, 1) - pmt;
+    } else {
+      ipmt = FV(rate, per - 1, pmt, pv, 0);
+    }
+  }
+  return ipmt * rate;
+}
+
+// Excel PPMT(rate, per, nper, pv, fv=0, type=0) = PMT - IPMT: per 期の元金分。
+function PPMT(rate, per, nper, pv, fv = 0, type = 0) {
+  return PMT(rate, nper, pv, fv, type) - IPMT(rate, per, nper, pv, fv, type);
+}
+
+// --- 補助 ---------------------------------------------------------------
+
+// Excel VLOOKUP(value, table, colIndex1based, TRUE) の近似一致（昇順の1列目に対し
+// value 以下で最大の行を選ぶ）。table は行配列 [[key, c2, c3, ...], ...]。
+function vlookupApprox(value, table, colIndex1based) {
+  let chosen = null;
+  for (const row of table) {
+    if (row[0] <= value) chosen = row;
+    else break;
+  }
+  if (chosen == null) return 0; // value が最小キー未満（Excel は #N/A だが本表は0行始まり）
+  return chosen[colIndex1based - 1];
+}
+
+
+// ---- js/calc/constants.js ----
+// constants.js — Excel「設定」シート等の定数テーブル。令和7/8年度改正反映版。
+// 出典: docs/calc-spec.md および docs/raw-cells/設定.txt（実セルの数値そのまま）。
+
+// 人的控除額（所得税ベース D列）。設定シート C=住民税/D=所得税。
+// 本ソフトの住宅ローン控除計算は所得税ベース(J52)のみ使用するが、住民税側も後で使う。
+const JINTEKI = {
+  hitorioya:        { juu: 300000, syo: 350000 }, // ひとり親 設定C19/D19
+  kafu:             { juu: 260000, syo: 270000 }, // 寡婦 C20/D20
+  kinroGakusei:     { juu: 260000, syo: 270000 }, // 勤労学生 C21/D21
+  fuyoIppan:        { juu: 330000, syo: 380000 }, // 一般扶養 C24/D24
+  fuyoTokutei:      { juu: 450000, syo: 630000 }, // 特定扶養 C25/D25
+  fuyoRoujin:       { juu: 380000, syo: 480000 }, // 老人扶養 C26/D26
+  fuyoDoukyoRoushin:{ juu: 450000, syo: 580000 }, // 同居老親 C27/D27
+  shougaiIppan:     { juu: 260000, syo: 270000 }, // 一般障害者 C41/D41
+  shougaiTokubetsu: { juu: 300000, syo: 400000 }, // 特別障害者 C42/D42
+  shougaiDoukyo:    { juu: 530000, syo: 750000 }, // 同居特別障害者 C43/D43
+};
+
+// 基礎控除（住民税は一律430,000）。設定!B37。
+const KISO_JUUMINZEI = 430000;
+
+// 配偶者控除（所得税/住民税）: 本人の給与所得後金額(AE10)で段階。所得控除!D35/J35。
+// 老人控除対象配偶者の上乗せは本ソフト非対応。
+function haiguushaKoujo(ae10, syo) {
+  if (ae10 <= 9000000) return syo ? 380000 : 330000;
+  if (ae10 <= 9500000) return syo ? 260000 : 220000;
+  if (ae10 <= 10000000) return syo ? 130000 : 110000;
+  return 0;
+}
+
+// 基礎控除（所得税）: 給与所得後金額(AE10)で段階。令和7年改正の加算含む。所得控除!J50。
+function kisoKoujoShotokuzei(ae10) {
+  if (ae10 <= 1320000) return 950000;
+  if (ae10 <= 3360000) return 880000;
+  if (ae10 <= 4890000) return 680000;
+  if (ae10 <= 6550000) return 630000;
+  if (ae10 <= 23500000) return 580000;
+  if (ae10 <= 24000000) return 480000;
+  if (ae10 <= 24500000) return 320000;
+  if (ae10 <= 25000000) return 160000;
+  return 0;
+}
+
+// 配偶者特別控除テーブル 設定!A50:G60。
+// 各行 [配偶者所得下限, 所900万以下(B), 所950万(C), 所1000万(D), 住900万(E), 住950万(F), 住1000万(G)]
+const HAIGUUSHA_TOKUBETSU_TABLE = [
+  [0,       0,      0,      0,      0,      0,      0],
+  [580001,  380000, 260000, 130000, 330000, 220000, 110000],
+  [950001,  360000, 240000, 120000, 330000, 220000, 110000],
+  [1000001, 310000, 210000, 110000, 310000, 210000, 110000],
+  [1050001, 260000, 180000, 90000,  260000, 180000, 90000],
+  [1100001, 210000, 140000, 70000,  210000, 140000, 70000],
+  [1150001, 160000, 110000, 60000,  160000, 110000, 60000],
+  [1200001, 110000, 80000,  40000,  110000, 80000,  40000],
+  [1250001, 60000,  40000,  20000,  60000,  40000,  20000],
+  [1300001, 30000,  20000,  10000,  30000,  20000,  10000],
+  [1330001, 0,      0,      0,      0,      0,      0],
+];
+
+// 住宅ローン控除の借入限度額(万円)と控除期間(年)。各住宅シート D79/D81。
+// 借り入れ比率!D11(新築/既存)・D12(子育て○/×)で決定。令和8年度改正。
+const HOUSING_TYPES = ["認定住宅", "ZEH水準", "省エネ基準", "一般住宅"];
+function loanLimitManyen(housingType, isNew, isChildcare) {
+  switch (housingType) {
+    case "認定住宅":
+      return isNew ? (isChildcare ? 5000 : 4500) : (isChildcare ? 4500 : 3500);
+    case "ZEH水準":
+      return isChildcare ? 4500 : 3500;
+    case "省エネ基準":
+      return isChildcare ? 3000 : 2000;
+    case "一般住宅":
+      return isNew ? 0 : 2000; // 新築の一般住宅は対象外
+    default:
+      throw new Error("unknown housing type: " + housingType);
+  }
+}
+function loanPeriodYears(housingType, isNew) {
+  if (housingType === "一般住宅") return isNew ? 0 : 10; // 既存の一般は10年
+  return 13;
+}
+
+// 控除率・住民税控除
+const DEDUCTION_RATE = 0.007;     // D78 控除率 0.7%
+const RESIDENT_DEDUCTION_RATE = 0.05; // L78 住民税控除率 5%
+const RESIDENT_DEDUCTION_CAP = 97500; // T78 住民税控除限度額(円)
+const RECOVERY_TAX_RATE = 1.021;  // 復興特別所得税
+
+
+// ---- js/calc/deductions.js ----
+// deductions.js — 給与所得控除・生命保険料控除・所得税の所得控除合計(所得控除!J52)。
+// 住宅ローン控除の13年計算はこの J52（源泉!AT10）と給与所得控除だけを使う。
+
+
+
+
+// 給与所得控除後の金額(源泉!AE10 / 各住宅シート AY)。令和7年改正式。
+// AE10 = MAX(income - 給与所得控除, 0)。給与所得控除は下記の階段。
+function kyuyoDeductionSubtrahend(income) {
+  if (income < 1900000) return Math.min(Math.max(income, 0), 650000);
+  if (income < 3600000) return income - ROUNDDOWN(income / 4000, 0) * 2800 + 80000;
+  if (income < 6600000) return income - ROUNDDOWN(income / 4000, 0) * 3200 + 440000;
+  if (income < 8500000) return income * 0.1 + 1100000;
+  return 1950000;
+}
+function kyuyoShotoku(income) {
+  return Math.max(income - kyuyoDeductionSubtrahend(income), 0);
+}
+
+// --- 生命保険料控除（所得税ベース） ------------------------------------
+// 新契約の段階（所得税）: ≤20000 全額 / ~40000 CEIL(x/2)+10000 / ~80000 CEIL(x/4)+20000 / >80000 40000
+function seihoNewSyo(x) {
+  if (x <= 20000) return x;
+  if (x <= 40000) return ROUNDUP(x / 2, 0) + 10000;
+  if (x <= 80000) return ROUNDUP(x / 4, 0) + 20000;
+  return 40000;
+}
+// 旧契約の段階（所得税）: ≤25000 全額 / ~50000 CEIL(x/2)+12500 / ~100000 CEIL(x/4)+25000 / >100000 50000
+function seihoOldSyo(x) {
+  if (x <= 25000) return x;
+  if (x <= 50000) return ROUNDUP(x / 2, 0) + 12500;
+  if (x <= 100000) return ROUNDUP(x / 4, 0) + 25000;
+  return 50000;
+}
+
+// 所得税の生命保険料控除額（設定!O56 相当）。
+// ins = { lifeNewGeneral, lifeOldGeneral, pensionNew, pensionOld, lifeNursing }
+function seimeihokenControlSyo(ins) {
+  // 一般生保: 新(C12)=lifeNewGeneral, 旧(B12)=lifeOldGeneral
+  const newG = seihoNewSyo(ins.lifeNewGeneral);
+  const oldG = seihoOldSyo(ins.lifeOldGeneral);
+  const combG = Math.min(newG + oldG, 40000);        // N44
+  const o53 = Math.max(oldG, combG);                  // O53 = MAX(旧, 新旧計)
+  // 個人年金: 新(C14)=pensionNew, 旧(B14)=pensionOld
+  const newP = seihoNewSyo(ins.pensionNew);
+  const oldP = seihoOldSyo(ins.pensionOld);
+  const combP = Math.min(newP + oldP, 40000);         // N45
+  const o54 = Math.max(oldP, combP);                  // O54
+  // 介護医療: 新式のみ(D12)=lifeNursing
+  const o55 = seihoNewSyo(ins.lifeNursing);           // O55 = L46
+  return Math.min(120000, o53 + o54 + o55);           // O56
+}
+
+// --- 所得税の所得控除合計（所得控除!J52） ------------------------------
+// p は person 入力（engine.js の PersonInput）。ae10 は kyuyoShotoku(p.incomeP10)。
+function incomeTaxDeductions(p, ae10) {
+  // 人的控除フラグ（基本入力シート）
+  const d5 = (p.isSingleParent && ae10 <= 5000000) ? 1 : 0; // ひとり親(源泉!I80)
+  const d6 = (p.isWidow && ae10 <= 5000000) ? 1 : 0;        // 寡婦(源泉!I79)
+  const d9 = (p.isWorkingStudent && ae10 <= 5000000) ? 1 : 0; // 勤労学生(源泉!I81)
+  const d7 = p.selfDisabledGeneral ? 1 : 0; // 本人が一般障害(源泉!T51)
+  const d8 = p.selfDisabledSpecial ? 1 : 0; // 本人が特別障害(源泉!Q51)
+
+  // 被扶養者の障害区分人数（所得控除!D31/D32/D33）
+  const d31 = p.disabledGeneral;                       // 一般障害(源泉!BN16)
+  const d32 = p.disabledSpecial - p.disabledSpecialCohab; // 特別障害(源泉!BJ16-BF16)
+  const d33 = p.disabledSpecialCohab;                  // 同居特別障害(源泉!BF16)
+
+  const J2 = p.socialInsurance; // 社会保険料控除
+  const J10 = seimeihokenControlSyo(p);                 // 生命保険料控除
+  const J16 = p.earthquakeInsurance;                    // 地震保険料控除
+  const J27 = d5 * JINTEKI.hitorioya.syo + d6 * JINTEKI.kafu.syo; // ひとり親+寡婦
+  const J29 =
+    d9 * JINTEKI.kinroGakusei.syo +
+    d7 * JINTEKI.shougaiIppan.syo +
+    d8 * JINTEKI.shougaiTokubetsu.syo +
+    d31 * JINTEKI.shougaiIppan.syo +
+    d32 * JINTEKI.shougaiTokubetsu.syo +
+    d33 * JINTEKI.shougaiDoukyo.syo; // 勤労学生・障害者控除
+
+  const J35 = p.hasSpouseDeduction ? haiguushaKoujo(ae10, true) : 0; // 配偶者控除
+  let J38 = 0; // 配偶者特別控除
+  if (!p.hasSpouseDeduction && ae10 <= 10000000) {
+    const col = ae10 <= 9000000 ? 2 : ae10 <= 9500000 ? 3 : 4; // 所得税列 B/C/D
+    J38 = vlookupApprox(p.spouseIncome, HAIGUUSHA_TOKUBETSU_TABLE, col);
+  }
+
+  // 扶養控除（所得控除!J42）
+  const f44 = Math.max(p.depElderly - p.depElderlyCohab, 0); // 老人扶養(同居除く)
+  const f45 = Math.max(p.depElderlyCohab, 0);                // 同居老親
+  const f46 = Math.max(p.depSpecified, 0);                   // 特定扶養
+  const f47 = Math.max(p.depGeneral, 0);                     // 一般扶養
+  const J42 =
+    f44 * JINTEKI.fuyoRoujin.syo +
+    f45 * JINTEKI.fuyoDoukyoRoushin.syo +
+    f46 * JINTEKI.fuyoTokutei.syo +
+    f47 * JINTEKI.fuyoIppan.syo;
+
+  const J50 = kisoKoujoShotokuzei(ae10); // 基礎控除
+
+  const J52 = J2 + J10 + J16 + J27 + J29 + J35 + J38 + J42 + J50;
+  return { J2, J10, J16, J27, J29, J35, J38, J42, J50, J52, ae10 };
+}
+
+
+// ---- js/calc/amort.js ----
+// amort.js — 資金返済表のポート。ローンを「フラット月々/フラットボーナス/銀行月々/
+// 銀行ボーナス」の4系列に分け、各年末(12n月・2n期)の元金残高を求め合算する。
+// フラット35は11年目(月々=121回目/ボーナス=21期目)で金利を切り替える（Excel実装どおり）。
+
+
+
+// 元金残高の系列を返す。balances[k] = k期(回)返済後の残高。
+// switchAfter=null なら金利切替なし。termPeriods を超える回は返済額0（完済）。
+function amortize(pv, rateInit, nperInit, rateSwitch, nperSwitch, switchAfter, maxPeriod) {
+  const balances = new Array(maxPeriod + 1).fill(0);
+  balances[0] = pv;
+  if (pv === 0) return balances; // 借入なしなら全期0
+  const termPeriods = nperInit; // 完済まで（初期スケジュールの総回数）
+  let bal = pv;
+  let principalAtSwitch = 0;
+  for (let k = 1; k <= maxPeriod; k++) {
+    if (switchAfter != null && k === switchAfter + 1) {
+      principalAtSwitch = balances[switchAfter]; // 切替時点の残高(C11/C14)
+    }
+    let ppmt;
+    if (k > termPeriods) {
+      ppmt = 0; // 完済後
+    } else if (switchAfter == null || k <= switchAfter) {
+      ppmt = PPMT(rateInit, k, nperInit, pv);
+    } else {
+      ppmt = PPMT(rateSwitch, k - switchAfter, nperSwitch, principalAtSwitch);
+    }
+    // Excelの元金残り D = D_prev - B, B = -PPMT なので D = D_prev + PPMT。
+    // 自作PPMTはExcel同様に負値(支払は流出)を返すため、加算で残高が減少する。
+    bal = bal + ppmt;
+    balances[k] = bal;
+  }
+  return balances;
+}
+
+// person の1人分ローンパラメータから、13年分の年末残高(円)を返す（長さ13、index0=1年目）。
+// lp: {
+//   flatMonthlyPrincipal, flatBonusPrincipal, flatYears, flatRate, flatRate11,
+//   bankMonthlyPrincipal, bankBonusPrincipal, bankYears, bankRate }  (金利は%)
+function yearEndBalances(lp) {
+  const YEARS = 13;
+  const MONTHS = YEARS * 12;   // 156
+  const BONUSES = YEARS * 2;   // 26
+
+  // フラット月々（121回目で金利切替）
+  const flatM = amortize(
+    lp.flatMonthlyPrincipal,
+    lp.flatRate / 100 / 12, lp.flatYears * 12,
+    lp.flatRate11 / 100 / 12, (lp.flatYears - 10) * 12,
+    120, MONTHS
+  );
+  // フラットボーナス（21期目で金利切替）
+  const flatB = amortize(
+    lp.flatBonusPrincipal,
+    lp.flatRate / 100 / 2, lp.flatYears * 2,
+    lp.flatRate11 / 100 / 2, (lp.flatYears - 10) * 2,
+    20, BONUSES
+  );
+  // 銀行月々（金利切替なし）
+  const bankM = amortize(
+    lp.bankMonthlyPrincipal,
+    lp.bankRate / 100 / 12, lp.bankYears * 12,
+    0, 0, null, MONTHS
+  );
+  // 銀行ボーナス（金利切替なし）
+  const bankB = amortize(
+    lp.bankBonusPrincipal,
+    lp.bankRate / 100 / 2, lp.bankYears * 2,
+    0, 0, null, BONUSES
+  );
+
+  const out = [];
+  for (let n = 1; n <= YEARS; n++) {
+    out.push(flatM[12 * n] + flatB[2 * n] + bankM[12 * n] + bankB[2 * n]);
+  }
+  return out;
+}
+
+
+// ---- js/calc/loan.js ----
+// loan.js — 各住宅シート(認定住宅/ZEH水準/省エネ基準/一般住宅)の13年分控除額計算。
+// 1人・1住宅種別ぶん。所得税から控除(W)＋住民税から控除(AB)＝年控除額(AG)を13年合計。
+
+
+
+
+
+// 所得税の速算（復興特別所得税込み）。base = ROUNDDOWN(課税所得, -3)。各住宅シート BQ。
+function incomeTaxWithRecovery(taxableIncome) {
+  const base = ROUNDDOWN(taxableIncome, -3);
+  const tax = Math.max(
+    base * 0.05,
+    base * 0.10 - 97500,
+    base * 0.20 - 427500,
+    base * 0.23 - 636000,
+    base * 0.33 - 1536000,
+    base * 0.40 - 2796000,
+    base * 0.45 - 4796000
+  );
+  return ROUNDDOWN(tax * RECOVERY_TAX_RATE, -2);
+}
+
+// 1人・1住宅種別の13年控除額。
+// args:
+//   income        : 初年度の給与収入(源泉!P10 / CP10)
+//   bd            : 所得控除合計(源泉!AT10 = 所得控除!J52)。13年間固定。
+//   balances      : 13年分の年末ローン残高(円)[13]
+//   housingType, isNew, isChildcare : 借入限度額・控除期間の決定
+//   upRatePct     : 所得年間UP率(%)
+//   applyUpRateAllYears : true=13年全部にUP率適用(修正版) / false=Excel完全一致(11-13年目はUP率0)
+function housing13Years(args) {
+  const { income, bd, balances, housingType, isNew, isChildcare, upRatePct, applyUpRateAllYears } = args;
+  const limitManyen = loanLimitManyen(housingType, isNew, isChildcare);
+  const period = loanPeriodYears(housingType, isNew);
+  const limitYen = limitManyen * 10000; // D80
+
+  const yearly = [];
+  let prevAT = 0;
+  for (let n = 1; n <= 13; n++) {
+    // 投影収入 AT
+    let AT;
+    if (n === 1) {
+      AT = income;
+    } else if (n === 2) {
+      AT = income * (upRatePct / 100 + 1);
+    } else {
+      // Excel完全一致では11-13年目(n>=11)はUP率0（空セル参照バグ）。修正版は全年UP率。
+      const rate = (!applyUpRateAllYears && n >= 11) ? 0 : upRatePct;
+      AT = prevAT * (1 + rate / 100);
+    }
+    prevAT = AT;
+
+    const F = balances[n - 1];
+    const M = Math.min(F, limitYen);              // 残高上限額
+    const R = (n <= period) ? M * DEDUCTION_RATE : 0; // 控除可能額
+    const AY = kyuyoDeductionSubtrahend(AT);      // 給与所得控除
+    const BI = Math.max(0, AT - AY - bd);         // 課税所得額
+    const BQ = incomeTaxWithRecovery(BI);         // 所得税(復興込)
+    const W = BQ > R ? R : BQ;                    // 所得税から控除 = min(BQ,R)
+    const BT = R - W;                             // 引き切れなかった額
+    const AB = Math.max(0, Math.min(RESIDENT_DEDUCTION_CAP, BI * RESIDENT_DEDUCTION_RATE, BT)); // 住民税から控除
+    const AG = W + AB;                            // 年控除額
+    yearly.push({ n, F, M, R, AT, AY, BI, BQ, W, BT, AB, AG });
+  }
+  const total = yearly.reduce((s, y) => s + y.AG, 0);
+  return { limitManyen, period, yearly, total };
+}
+
+
+// ---- js/calc/engine.js ----
+// engine.js — 入力(源泉徴収票2人分＋借り入れ比率)から減税額一覧表・夫婦合計までを計算する
+// 統合オーケストレータ。UIとNode検証(oracle照合)の両方から呼ばれる純粋関数。
+
+
+
+
+
+
+
+// person入力の既定値。UI/呼び出し側は必要なものだけ渡せばよい。
+function defaultPerson() {
+  return {
+    incomeP10: 0,
+    hasSpouseDeduction: false, // 控除対象配偶者「有」(源泉!B16="○")
+    socialInsurance: 0,        // 社会保険料等(源泉!B20)
+    earthquakeInsurance: 0,    // 地震保険料控除額 所得税(源泉!AN20)
+    lifeNewGeneral: 0,         // 新生命保険料(源泉!L25)
+    lifeOldGeneral: 0,         // 旧生命保険料(源泉!Z25)
+    lifeNursing: 0,            // 介護医療保険料(源泉!AN25)
+    pensionNew: 0,             // 新個人年金(源泉!BB25)
+    pensionOld: 0,             // 旧個人年金(源泉!BP25)
+    spouseIncome: 0,           // 配偶者の合計所得(源泉!AO31)
+    depSpecified: 0,           // 特定扶養(源泉!AB16)
+    depElderly: 0,             // 老人扶養 内(源泉!AM16)
+    depElderlyCohab: 0,        // 同居老親 内(源泉!AI16)
+    depGeneral: 0,             // 一般扶養(源泉!AT16)
+    depUnder16: 0,             // 16歳未満(源泉!BB16)
+    disabledSpecialCohab: 0,   // 同居特別障害(源泉!BF16)
+    disabledSpecial: 0,        // 特別障害 計(源泉!BJ16)
+    disabledGeneral: 0,        // 一般障害(源泉!BN16)
+    isMinor: false,            // 未成年(源泉!B51)
+    selfDisabledSpecial: false,// 本人が特別障害(源泉!Q51)
+    selfDisabledGeneral: false,// 本人が一般障害(源泉!T51)
+    isWidow: false,            // 寡婦(源泉!W51)
+    isSingleParent: false,     // ひとり親(源泉!Z51)
+    isWorkingStudent: false,   // 勤労学生(源泉!AC51)
+    residentFlatPref: 2000,    // 均等割 都道府県(源泉!O61)
+    residentFlatCity: 3000,    // 均等割 市区町村(源泉!O62)
+    incomeUpRate: 0,           // 所得年間UP率 %(源泉!AB63)
+    gradeArea: "1級地",         // 級地(基本入力!C19)
+  };
+}
+function defaultLoan() {
+  return {
+    landPrice: 0,        // 土地金額(D2)
+    buildingPrice: 0,    // 建物金額 税抜(D3)
+    miscCost: 0,         // 諸経費(D5)
+    selfFundHead: 0,     // 自己資金 世帯主(D7)
+    selfFundSpouse: 0,   // 自己資金 配偶者(D8)
+    isNew: true,         // 住宅区分 新築=true/既存=false(D11)
+    isChildcare: false,  // 子育て・若者夫婦世帯(D12)
+    ownershipHead: 1,    // 持分比率 世帯主(F14) 0..1（配偶者=1-これ）
+    headFlatShare: 1,    // 世帯主フラット35利用率(F23)
+    headBonusShare: 0,   // 世帯主ボーナス割合(G23)
+    spouseFlatShare: 1,  // 配偶者フラット35利用率(L23)
+    spouseBonusShare: 0, // 配偶者ボーナス割合(M23)
+    flatRate: 1.43,      // フラット金利 当初10年(D24)
+    flatRate11: 1.43,    // フラット金利 11年〜(D25)
+    flatYears: 35,       // フラット返済年数(E24)
+    bankRate: 2,         // 銀行金利(D27)
+    bankYears: 20,       // 銀行返済年数(E27)
+  };
+}
+
+// 借入金額を世帯主/配偶者・フラット/銀行・月々/ボーナスに按分し、各人のローンパラメータを返す。
+function splitLoan(loan) {
+  const d4 = FLOOR(loan.buildingPrice * 1.1, 1);   // 建物税込
+  const d6 = loan.landPrice + d4 + loan.miscCost;  // 合計
+  const d9 = loan.selfFundHead + loan.selfFundSpouse; // 自己資金合計
+  const d10 = d6 - d9;                             // 借入金額
+  const headBorrow = d10 * loan.ownershipHead;
+  const spouseBorrow = d10 * (1 - loan.ownershipHead);
+
+  const mkParams = (borrow, flatShare, bonusShare) => ({
+    flatMonthlyPrincipal: borrow * flatShare * (1 - bonusShare),
+    flatBonusPrincipal: borrow * flatShare * bonusShare,
+    bankMonthlyPrincipal: borrow * (1 - flatShare),
+    bankBonusPrincipal: 0, // 銀行ボーナス割合(G26/M26)は既定0
+    flatYears: loan.flatYears,
+    flatRate: loan.flatRate,
+    flatRate11: loan.flatRate11,
+    bankYears: loan.bankYears,
+    bankRate: loan.bankRate,
+  });
+
+  return {
+    totals: { d4, d6, d9, d10, headBorrow, spouseBorrow },
+    head: mkParams(headBorrow, loan.headFlatShare, loan.headBonusShare),
+    spouse: mkParams(spouseBorrow, loan.spouseFlatShare, loan.spouseBonusShare),
+  };
+}
+
+// 1人分: 給与所得後・所得控除合計・13年ローン残高・住宅4種の13年控除を計算。
+function computePerson(person, loanParams, isNew, isChildcare, applyUpRateAllYears) {
+  const ae10 = kyuyoShotoku(person.incomeP10);
+  const ded = incomeTaxDeductions(person, ae10);
+  const balances = yearEndBalances(loanParams);
+  const byHousing = {};
+  for (const h of HOUSING_TYPES) {
+    byHousing[h] = housing13Years({
+      income: person.incomeP10,
+      bd: ded.J52,
+      balances,
+      housingType: h,
+      isNew,
+      isChildcare,
+      upRatePct: person.incomeUpRate,
+      applyUpRateAllYears,
+    });
+  }
+  return { ae10, deductions: ded, balances, byHousing };
+}
+
+// メインエントリ。input = { head, spouse, loan, options:{applyUpRateAllYears} }
+function calculate(input) {
+  const head = { ...defaultPerson(), ...(input.head || {}) };
+  const spouse = { ...defaultPerson(), ...(input.spouse || {}) };
+  const loan = { ...defaultLoan(), ...(input.loan || {}) };
+  const applyUpRateAllYears = input.options?.applyUpRateAllYears ?? true; // 既定=修正版
+
+  const split = splitLoan(loan);
+  const headRes = computePerson(head, split.head, loan.isNew, loan.isChildcare, applyUpRateAllYears);
+  const spouseRes = computePerson(spouse, split.spouse, loan.isNew, loan.isChildcare, applyUpRateAllYears);
+
+  // 減税額一覧表 + 夫婦合計
+  const summary = {};
+  for (const h of HOUSING_TYPES) {
+    const headTotal = headRes.byHousing[h].total;
+    const spouseTotal = spouseRes.byHousing[h].total;
+    summary[h] = {
+      head: headRes.byHousing[h],
+      spouse: spouseRes.byHousing[h],
+      coupleTotal: headTotal + spouseTotal, // 借り入れ比率!J3..J6
+    };
+  }
+
+  return { loanSplit: split.totals, head: headRes, spouse: spouseRes, summary };
+}
+
+
+// ---- js/ui.js ----
+// ui.js — 源泉徴収票そっくりの入力フォーム構築・入力収集・減税額一覧の描画。
+
+
+// --- 小さなDOMヘルパ ---
+function el(tag, props = {}, children = []) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") n.className = v;
+    else if (k === "html") n.innerHTML = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) {
+    if (c == null) continue;
+    n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
+  return n;
+}
+
+// 源泉徴収票 各セクション定義（key = engineのpersonフィールド）
+const SLIP_SECTIONS = [
+  {
+    sub: "収入・控除額",
+    fields: [
+      { key: "incomeP10", label: "支払金額（給与収入）", num: true },
+      { key: "_ae10", label: "給与所得控除後の金額", computed: true },
+      { key: "_j52", label: "所得控除の額の合計額", computed: true },
+    ],
+  },
+  {
+    sub: "配偶者",
+    fields: [
+      { key: "hasSpouseDeduction", label: "控除対象配偶者「有」", small: "配偶者控除の対象", check: true },
+      { key: "spouseIncome", label: "配偶者の合計所得", small: "配偶者特別控除の判定に使用", num: true },
+    ],
+  },
+  {
+    sub: "控除対象扶養親族の数（人）",
+    fields: [
+      { key: "depSpecified", label: "特定扶養（19〜22歳）", num: true },
+      { key: "depElderly", label: "老人扶養（70歳以上・内数）", num: true },
+      { key: "depElderlyCohab", label: "うち同居老親等", num: true },
+      { key: "depGeneral", label: "その他（一般）扶養", small: "16〜18・23〜69歳", num: true },
+      { key: "depUnder16", label: "16歳未満の扶養親族", num: true },
+    ],
+  },
+  {
+    sub: "障害者の数（人）",
+    fields: [
+      { key: "disabledSpecial", label: "特別障害者（計・同居含む）", num: true },
+      { key: "disabledSpecialCohab", label: "うち同居特別障害者", num: true },
+      { key: "disabledGeneral", label: "一般障害者", num: true },
+    ],
+  },
+  {
+    sub: "保険料控除",
+    fields: [
+      { key: "socialInsurance", label: "社会保険料等の金額", num: true },
+      { key: "lifeNewGeneral", label: "新生命保険料の金額", num: true },
+      { key: "lifeOldGeneral", label: "旧生命保険料の金額", num: true },
+      { key: "lifeNursing", label: "介護医療保険料の金額", num: true },
+      { key: "pensionNew", label: "新個人年金保険料の金額", num: true },
+      { key: "pensionOld", label: "旧個人年金保険料の金額", num: true },
+      { key: "earthquakeInsurance", label: "地震保険料の控除額", num: true },
+    ],
+  },
+  {
+    sub: "本人の状況（該当すれば✓）",
+    checks: [
+      { key: "isWidow", label: "寡婦" },
+      { key: "isSingleParent", label: "ひとり親" },
+      { key: "isWorkingStudent", label: "勤労学生" },
+      { key: "selfDisabledSpecial", label: "本人が特別障害者" },
+      { key: "selfDisabledGeneral", label: "本人が一般障害者" },
+      { key: "isMinor", label: "未成年（20歳未満）" },
+    ],
+  },
+  {
+    sub: "住民税・将来投影",
+    fields: [
+      { key: "residentFlatPref", label: "均等割額（都道府県）", num: true, def: 2000 },
+      { key: "residentFlatCity", label: "均等割額（市区町村）", num: true, def: 3000 },
+      { key: "incomeUpRate", label: "所得年間UP率（％）", small: "翌年以降の給与上昇率", num: true },
+    ],
+  },
+];
+
+function slipField(who, f) {
+  const id = `${who}.${f.key}`;
+  if (f.computed) {
+    return el("div", { class: "fld computed" }, [
+      el("label", {}, [f.label]),
+      el("input", { type: "text", id, readonly: "readonly", value: "0" }),
+    ]);
+  }
+  const input = el("input", {
+    type: "number", id, step: "any",
+    value: f.def != null ? String(f.def) : "",
+    placeholder: "0",
+  });
+  const lab = el("label", {}, [f.label]);
+  if (f.small) lab.appendChild(el("small", {}, [f.small]));
+  return el("div", { class: "fld" }, [lab, input]);
+}
+
+function renderSlip(who, title, subtitle) {
+  const body = el("div", { class: "box-grid" });
+  for (const sec of SLIP_SECTIONS) {
+    body.appendChild(el("div", { class: "slip-sub" }, [sec.sub]));
+    if (sec.fields) {
+      for (const f of sec.fields) body.appendChild(slipField(who, f));
+    }
+    if (sec.checks) {
+      const grid = el("div", { class: "chk-grid" });
+      for (const c of sec.checks) {
+        grid.appendChild(el("label", { class: "chk" }, [
+          el("input", { type: "checkbox", id: `${who}.${c.key}` }),
+          c.label,
+        ]));
+      }
+      body.appendChild(grid);
+    }
+  }
+  return el("div", { class: `slip ${who}` }, [
+    el("div", { class: "slip-head" }, [title]),
+    subtitle ? el("div", { class: "slip-sub" }, [subtitle]) : null,
+    body,
+  ]);
+}
+
+// --- 借り入れ比率フォーム ---
+function lf(id, label, opts = {}) {
+  const wrap = el("div", { class: "lf" });
+  const lab = el("label", {}, [label]);
+  if (opts.small) lab.appendChild(el("small", {}, [opts.small]));
+  let control;
+  if (opts.select) {
+    control = el("select", { id });
+    for (const [val, text] of opts.select) control.appendChild(el("option", { value: val }, [text]));
+    if (opts.def != null) control.value = opts.def;
+  } else {
+    const input = el("input", { type: "number", id, step: "any", value: opts.def != null ? String(opts.def) : "", placeholder: "0" });
+    if (opts.unit) {
+      control = el("div", { class: "with-unit" }, [input, el("span", { class: "u" }, [opts.unit])]);
+    } else control = input;
+  }
+  wrap.append(lab, control);
+  return wrap;
+}
+
+function renderLoan() {
+  return el("div", { class: "loan-grid" }, [
+    el("div", { class: "loan-sub" }, ["物件・資金"]),
+    lf("loan.landPrice", "土地金額", { unit: "円" }),
+    lf("loan.buildingPrice", "建物金額（税抜）", { unit: "円" }),
+    lf("loan.miscCost", "諸経費", { unit: "円" }),
+    lf("loan.selfFundHead", "自己資金（世帯主）", { unit: "円" }),
+    lf("loan.selfFundSpouse", "自己資金（配偶者）", { unit: "円" }),
+    lf("loan.ownershipHead", "持分比率（世帯主）", { small: "0〜1。配偶者＝1−この値", def: 1, unit: "" }),
+
+    el("div", { class: "loan-sub" }, ["住宅の区分"]),
+    lf("loan.isNew", "住宅区分", { select: [["新築", "新築"], ["既存", "既存（中古・買取再販以外）"]], def: "新築" }),
+    lf("loan.isChildcare", "子育て・若者夫婦世帯", { small: "19歳未満の子 or 夫婦いずれか40歳未満", select: [["×", "×（該当なし）"], ["○", "○（該当）"]], def: "×" }),
+
+    el("div", { class: "loan-sub" }, ["フラット35 / 銀行の借り方"]),
+    lf("loan.headFlatShare", "世帯主 フラット35利用率", { small: "0〜1（残りは銀行）", def: 1, unit: "" }),
+    lf("loan.headBonusShare", "世帯主 ボーナス返済割合", { def: 0, unit: "" }),
+    lf("loan.spouseFlatShare", "配偶者 フラット35利用率", { def: 1, unit: "" }),
+    lf("loan.spouseBonusShare", "配偶者 ボーナス返済割合", { def: 0, unit: "" }),
+
+    el("div", { class: "loan-sub" }, ["金利・返済年数（世帯主・配偶者 共通）"]),
+    lf("loan.flatRate", "フラット金利（当初10年）", { def: 1.43, unit: "％" }),
+    lf("loan.flatRate11", "フラット金利（11年〜）", { def: 1.43, unit: "％" }),
+    lf("loan.flatYears", "フラット返済年数", { def: 35, unit: "年" }),
+    lf("loan.bankRate", "銀行 金利", { def: 2, unit: "％" }),
+    lf("loan.bankYears", "銀行 返済年数", { def: 20, unit: "年" }),
+  ]);
+}
+
+// --- 入力収集 ---
+function numVal(id) {
+  const e = document.getElementById(id);
+  if (!e) return 0;
+  const v = parseFloat(e.value);
+  return isNaN(v) ? 0 : v;
+}
+function chkVal(id) {
+  const e = document.getElementById(id);
+  return !!(e && e.checked);
+}
+function selVal(id) {
+  const e = document.getElementById(id);
+  return e ? e.value : "";
+}
+
+function collectPerson(who) {
+  const p = {};
+  for (const sec of SLIP_SECTIONS) {
+    for (const f of (sec.fields || [])) {
+      if (f.computed) continue;
+      if (f.check) p[f.key] = chkVal(`${who}.${f.key}`);
+      else p[f.key] = numVal(`${who}.${f.key}`);
+    }
+    for (const c of (sec.checks || [])) p[c.key] = chkVal(`${who}.${c.key}`);
+  }
+  return p;
+}
+function collectInput() {
+  return {
+    head: collectPerson("head"),
+    spouse: collectPerson("spouse"),
+    loan: {
+      landPrice: numVal("loan.landPrice"),
+      buildingPrice: numVal("loan.buildingPrice"),
+      miscCost: numVal("loan.miscCost"),
+      selfFundHead: numVal("loan.selfFundHead"),
+      selfFundSpouse: numVal("loan.selfFundSpouse"),
+      ownershipHead: numVal("loan.ownershipHead"),
+      isNew: selVal("loan.isNew") === "新築",
+      isChildcare: selVal("loan.isChildcare") === "○",
+      headFlatShare: numVal("loan.headFlatShare"),
+      headBonusShare: numVal("loan.headBonusShare"),
+      spouseFlatShare: numVal("loan.spouseFlatShare"),
+      spouseBonusShare: numVal("loan.spouseBonusShare"),
+      flatRate: numVal("loan.flatRate"),
+      flatRate11: numVal("loan.flatRate11"),
+      flatYears: numVal("loan.flatYears"),
+      bankRate: numVal("loan.bankRate"),
+      bankYears: numVal("loan.bankYears"),
+    },
+    options: { applyUpRateAllYears: chkVal("opt-uprate-fix") },
+  };
+}
+
+// --- 描画 ---
+function buildForm() {
+  document.getElementById("slips").append(
+    renderSlip("head", "世帯主（ご主人）の源泉徴収票"),
+    renderSlip("spouse", "配偶者（奥様）の源泉徴収票"),
+  );
+  document.getElementById("loan").appendChild(renderLoan());
+}
+
+const yen = (x) => Math.round(x).toLocaleString("ja-JP") + "円";
+function renderOutput(result) {
+  const out = document.getElementById("output");
+  out.innerHTML = "";
+
+  // 計算された給与所得控除後・所得控除合計をスリップへ反映
+  setComputed("head", result.head);
+  setComputed("spouse", result.spouse);
+
+  // 夫婦合計カード
+  const cards = el("div", { class: "summary-cards" });
+  for (const h of HOUSING_TYPES) {
+    cards.appendChild(el("div", { class: "card" }, [
+      el("div", { class: "card-h" }, [h]),
+      el("div", { class: "card-v" }, [yen(result.summary[h].coupleTotal)]),
+      el("div", { class: "card-sub" }, ["夫婦合計・13年"]),
+    ]));
+  }
+  out.appendChild(el("h3", { class: "selected-note", html: "住宅の区分ごとの<b>13年間の減税額（夫婦合計）</b>" }));
+  out.appendChild(cards);
+
+  // 明細テーブル
+  out.appendChild(buildDetailTable(result));
+
+  out.appendChild(el("p", { class: "selected-note", html:
+    `世帯主 給与所得控除後: <b>${yen(result.head.ae10)}</b> ／ 所得控除合計: <b>${yen(result.head.deductions.J52)}</b>　　` +
+    `配偶者 給与所得控除後: <b>${yen(result.spouse.ae10)}</b> ／ 所得控除合計: <b>${yen(result.spouse.deductions.J52)}</b>`
+  }));
+}
+
+function setComputed(who, personRes) {
+  const ae = document.getElementById(`${who}._ae10`);
+  const j = document.getElementById(`${who}._j52`);
+  if (ae) ae.value = yen(personRes.ae10);
+  if (j) j.value = yen(personRes.deductions.J52);
+}
+
+function buildDetailTable(result) {
+  const thead = el("thead", {}, [
+    el("tr", {}, [
+      el("th", { rowspan: "2", class: "rowlabel" }, ["年"]),
+      el("th", { colspan: "4", class: "grp-head" }, ["世帯主"]),
+      el("th", { colspan: "4", class: "grp-spouse" }, ["配偶者"]),
+    ]),
+    el("tr", {}, [
+      ...HOUSING_TYPES.map((h) => el("th", {}, [h])),
+      ...HOUSING_TYPES.map((h) => el("th", {}, [h])),
+    ]),
+  ]);
+  const tbody = el("tbody");
+  for (let n = 0; n < 13; n++) {
+    tbody.appendChild(el("tr", {}, [
+      el("td", { class: "rowlabel" }, [`${n + 1}年目`]),
+      ...HOUSING_TYPES.map((h) => el("td", {}, [yen(result.head.byHousing[h].yearly[n].AG)])),
+      ...HOUSING_TYPES.map((h) => el("td", {}, [yen(result.spouse.byHousing[h].yearly[n].AG)])),
+    ]));
+  }
+  tbody.appendChild(el("tr", { class: "total" }, [
+    el("td", { class: "rowlabel" }, ["合計"]),
+    ...HOUSING_TYPES.map((h) => el("td", {}, [yen(result.head.byHousing[h].total)])),
+    ...HOUSING_TYPES.map((h) => el("td", {}, [yen(result.spouse.byHousing[h].total)])),
+  ]));
+  return el("div", { class: "result-table-wrap" }, [el("table", { class: "result" }, [thead, tbody])]);
+}
+
+
+// ---- js/app.js ----
+// app.js — エントリポイント。フォーム構築 → 入力収集 → 計算 → 出力描画を配線。
+
+
+
+function recompute() {
+  try {
+    const input = collectInput();
+    const result = calculate(input);
+    renderOutput(result);
+  } catch (e) {
+    console.error(e);
+    document.getElementById("output").innerHTML =
+      `<p style="color:#b91c1c">計算エラー: ${e.message}</p>`;
+  }
+}
+
+function init() {
+  buildForm();
+  document.getElementById("calc-btn").addEventListener("click", recompute);
+  // 入力変更で自動再計算（debounce）
+  let t;
+  document.querySelector("main").addEventListener("input", () => {
+    clearTimeout(t);
+    t = setTimeout(recompute, 250);
+  });
+  recompute(); // 初期描画（全0）
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
+
+
+</script>
+</body>
+</html>
