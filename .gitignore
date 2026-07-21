@@ -12,3 +12,5 @@ docs/raw-cells/
 node_modules/
 .claude/
 test/oracle/out.json
+dist/js/
+dist/css/

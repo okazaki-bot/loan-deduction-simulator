@@ -33,6 +33,17 @@ html = html.replace(
   `<script>\n${bundle}\n</script>`
 );
 
-fs.mkdirSync(path.join(ROOT, "dist"), { recursive: true });
-fs.writeFileSync(path.join(ROOT, "dist/index.html"), html);
+const DIST = path.join(ROOT, "dist");
+fs.mkdirSync(DIST, { recursive: true });
+fs.writeFileSync(path.join(DIST, "index.html"), html);
 console.log("wrote dist/index.html", Math.round(html.length / 1024) + "KB");
+
+// index.html(バンドル版)は自己完結だが、js/ css/ も同梱してデプロイ先で
+// 直リンク(js/app.js 等)が404/500にならないようにする（モジュール版でも動く状態にする）。
+for (const dir of ["js", "css"]) {
+  const src = path.join(ROOT, dir);
+  const dst = path.join(DIST, dir);
+  fs.rmSync(dst, { recursive: true, force: true });
+  fs.cpSync(src, dst, { recursive: true });
+  console.log("copied", dir, "-> dist/" + dir);
+}
