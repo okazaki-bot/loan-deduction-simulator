@@ -30,7 +30,7 @@ const SLIP_SECTIONS = [
   {
     sub: "配偶者",
     fields: [
-      { key: "hasSpouseDeduction", label: "控除対象配偶者「有」", small: "配偶者控除の対象", check: true },
+      { key: "hasSpouseDeduction", label: "控除対象配偶者", small: "配偶者控除の対象", boolSelect: [["無", "無"], ["有", "有"]], trueVal: "有" },
       { key: "spouseIncome", label: "配偶者の合計所得", small: "配偶者特別控除の判定に使用", num: true },
     ],
   },
@@ -93,13 +93,18 @@ function slipField(who, f) {
       el("input", { type: "text", id, readonly: "readonly", value: "0" }),
     ]);
   }
+  const lab = el("label", {}, [f.label]);
+  if (f.small) lab.appendChild(el("small", {}, [f.small]));
+  if (f.boolSelect) {
+    const sel = el("select", { id });
+    for (const [val, text] of f.boolSelect) sel.appendChild(el("option", { value: val }, [text]));
+    return el("div", { class: "fld" }, [lab, sel]);
+  }
   const input = el("input", {
     type: "number", id, step: "any",
     value: f.def != null ? String(f.def) : "",
     placeholder: "0",
   });
-  const lab = el("label", {}, [f.label]);
-  if (f.small) lab.appendChild(el("small", {}, [f.small]));
   return el("div", { class: "fld" }, [lab, input]);
 }
 
@@ -198,7 +203,8 @@ function collectPerson(who) {
   for (const sec of SLIP_SECTIONS) {
     for (const f of (sec.fields || [])) {
       if (f.computed) continue;
-      if (f.check) p[f.key] = chkVal(`${who}.${f.key}`);
+      if (f.boolSelect) p[f.key] = selVal(`${who}.${f.key}`) === f.trueVal;
+      else if (f.check) p[f.key] = chkVal(`${who}.${f.key}`);
       else p[f.key] = numVal(`${who}.${f.key}`);
     }
     for (const c of (sec.checks || [])) p[c.key] = chkVal(`${who}.${c.key}`);
