@@ -280,10 +280,13 @@ export function renderOutput(result) {
 }
 
 function setComputed(who, personRes) {
+  // 収入0の人は非課税で税額・減税額も0のため、表示だけ0円にする（紛らわしい基礎控除の
+  // 95万円などを見せない）。計算エンジンの値は変更していない（結果には影響なし）。
+  const income = numVal(`${who}.incomeP10`);
   const ae = document.getElementById(`${who}._ae10`);
   const j = document.getElementById(`${who}._j52`);
-  if (ae) ae.value = yen(personRes.ae10);
-  if (j) j.value = yen(personRes.deductions.J52);
+  if (ae) ae.value = income > 0 ? yen(personRes.ae10) : "0円";
+  if (j) j.value = income > 0 ? yen(personRes.deductions.J52) : "0円";
 }
 
 function buildDetailTable(result) {
