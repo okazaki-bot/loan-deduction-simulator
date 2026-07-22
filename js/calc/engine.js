@@ -3,6 +3,7 @@
 
 import { FLOOR } from "./excel.js";
 import { kyuyoShotoku, incomeTaxDeductions } from "./deductions.js";
+import { withholdingIncomeTax } from "./tax.js";
 import { yearEndBalances } from "./amort.js";
 import { housing13Years } from "./loan.js";
 import { HOUSING_TYPES } from "./constants.js";
@@ -95,6 +96,7 @@ function splitLoan(loan) {
 function computePerson(person, loanParams, isNew, isChildcare, applyUpRateAllYears) {
   const ae10 = kyuyoShotoku(person.incomeP10);
   const ded = incomeTaxDeductions(person, ae10);
+  const withholdingTax = withholdingIncomeTax(ae10, ded.J52); // 現在の源泉徴収税額(源泉!BI10)
   const balances = yearEndBalances(loanParams);
   const byHousing = {};
   for (const h of HOUSING_TYPES) {
@@ -109,7 +111,7 @@ function computePerson(person, loanParams, isNew, isChildcare, applyUpRateAllYea
       applyUpRateAllYears,
     });
   }
-  return { ae10, deductions: ded, balances, byHousing };
+  return { ae10, deductions: ded, withholdingTax, balances, byHousing };
 }
 
 // メインエントリ。input = { head, spouse, loan, options:{applyUpRateAllYears} }

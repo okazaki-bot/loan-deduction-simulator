@@ -20,11 +20,12 @@ function el(tag, props = {}, children = []) {
 // 源泉徴収票 各セクション定義（key = engineのpersonフィールド）
 const SLIP_SECTIONS = [
   {
-    sub: "収入・控除額",
+    band: true, // 源泉徴収票の上段（支払金額→給与所得控除後→所得控除合計→源泉徴収税額）
     fields: [
-      { key: "incomeP10", label: "支払金額（給与収入）", num: true },
+      { key: "incomeP10", label: "支払金額", num: true },
       { key: "_ae10", label: "給与所得控除後の金額", computed: true },
       { key: "_j52", label: "所得控除の額の合計額", computed: true },
+      { key: "_withholding", label: "源泉徴収税額", computed: true, highlight: true },
     ],
   },
   {
@@ -108,9 +109,26 @@ function slipField(who, f) {
   return el("div", { class: "fld" }, [lab, input]);
 }
 
+// 源泉徴収票 上段の横並びバンド（4ボックス）
+function renderBand(who, fields) {
+  const band = el("div", { class: "slip-band" });
+  for (const f of fields) {
+    const cls = "band-box" + (f.computed ? " computed" : "") + (f.highlight ? " highlight" : "");
+    const box = el("div", { class: cls }, [el("div", { class: "bl" }, [f.label])]);
+    if (f.computed) {
+      box.appendChild(el("div", { class: "bv", id: `${who}.${f.key}` }, ["0円"]));
+    } else {
+      box.appendChild(el("input", { type: "number", id: `${who}.${f.key}`, step: "any", placeholder: "0" }));
+    }
+    band.appendChild(box);
+  }
+  return band;
+}
+
 function renderSlip(who, title, subtitle) {
   const body = el("div", { class: "box-grid" });
   for (const sec of SLIP_SECTIONS) {
+    if (sec.band) { body.appendChild(renderBand(who, sec.fields)); continue; }
     body.appendChild(el("div", { class: "slip-sub" }, [sec.sub]));
     if (sec.fields) {
       for (const f of sec.fields) body.appendChild(slipField(who, f));
@@ -279,14 +297,20 @@ export function renderOutput(result) {
   }));
 }
 
+function setBox(id, text) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  if (e.tagName === "INPUT") e.value = text;
+  else e.textContent = text;
+}
 function setComputed(who, personRes) {
   // 収入0の人は非課税で税額・減税額も0のため、表示だけ0円にする（紛らわしい基礎控除の
   // 95万円などを見せない）。計算エンジンの値は変更していない（結果には影響なし）。
   const income = numVal(`${who}.incomeP10`);
-  const ae = document.getElementById(`${who}._ae10`);
-  const j = document.getElementById(`${who}._j52`);
-  if (ae) ae.value = income > 0 ? yen(personRes.ae10) : "0円";
-  if (j) j.value = income > 0 ? yen(personRes.deductions.J52) : "0円";
+  const z = income > 0;
+  setBox(`${who}._ae10`, z ? yen(personRes.ae10) : "0円");
+  setBox(`${who}._j52`, z ? yen(personRes.deductions.J52) : "0円");
+  setBox(`${who}._withholding`, z ? yen(personRes.withholdingTax) : "0円");
 }
 
 function buildDetailTable(result) {

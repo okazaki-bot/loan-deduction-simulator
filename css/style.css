@@ -77,6 +77,18 @@ main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
   border-bottom: 1px solid var(--line);
 }
 
+/* 源泉徴収票 上段の4ボックス横並びバンド */
+.slip-band { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 2px solid var(--line-strong); }
+.band-box { border-right: 1px solid #cfd4da; padding: 4px 6px 6px; min-width: 0; }
+.band-box:last-child { border-right: none; }
+.band-box .bl { font-size: 10px; color: #555; text-align: center; line-height: 1.25; min-height: 24px; display: flex; align-items: center; justify-content: center; }
+.band-box input { width: 100%; border: none; text-align: right; font-size: 14px; padding: 4px 2px; background: #fff; font-family: inherit; }
+.band-box input:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.band-box .bv { text-align: right; font-weight: 700; color: var(--accent); font-size: 14px; padding: 4px 2px; }
+.band-box.highlight { background: #fff7ed; }
+.band-box.highlight .bl { color: var(--spouse); font-weight: 700; }
+.band-box.highlight .bv { color: var(--spouse); font-size: 16px; }
+
 .box-grid { display: grid; gap: 0; }
 .fld {
   display: grid;

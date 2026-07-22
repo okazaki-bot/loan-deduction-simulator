@@ -8,7 +8,8 @@ N = int(sys.argv[2]) if len(sys.argv) > 2 else 50
 # 全出力セル: 減税額一覧表 8列×13年 + 合計8 + 源泉AE/AT(2人) + 借入J3-6
 COLS_HEAD = {"認定": "E", "ZEH": "I", "省エネ": "M", "一般": "Q"}
 COLS_SPOUSE = {"認定": "U", "ZEH": "Y", "省エネ": "AC", "一般": "AG"}
-outputs = ["源泉徴収票!AE10", "源泉徴収票!AT10", "源泉徴収票!DE10", "源泉徴収票!DT10"]
+outputs = ["源泉徴収票!AE10", "源泉徴収票!AT10", "源泉徴収票!DE10", "源泉徴収票!DT10",
+           "源泉徴収票!BI10", "源泉徴収票!EI10"]  # 源泉徴収税額(世帯主/配偶者)
 for col in list(COLS_HEAD.values()) + list(COLS_SPOUSE.values()):
     for row in range(9, 22):  # 9..21 = 1..13年目
         outputs.append(f"減税額一覧表!{col}{row}")

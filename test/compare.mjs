@@ -69,6 +69,8 @@ function toOutputs(r) {
     "源泉徴収票!AT10": r.head.deductions.J52,
     "源泉徴収票!DE10": r.spouse.ae10,
     "源泉徴収票!DT10": r.spouse.deductions.J52,
+    "源泉徴収票!BI10": r.head.withholdingTax,
+    "源泉徴収票!EI10": r.spouse.withholdingTax,
     "借り入れ比率!J3": sm["認定住宅"].coupleTotal,
     "借り入れ比率!J4": sm["ZEH水準"].coupleTotal,
     "借り入れ比率!J5": sm["省エネ基準"].coupleTotal,
