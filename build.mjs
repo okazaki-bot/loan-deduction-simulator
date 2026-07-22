@@ -6,7 +6,7 @@ import path from "node:path";
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
 const order = [
   "js/calc/excel.js", "js/calc/constants.js", "js/calc/deductions.js",
-  "js/calc/amort.js", "js/calc/loan.js", "js/calc/engine.js",
+  "js/calc/tax.js", "js/calc/amort.js", "js/calc/loan.js", "js/calc/engine.js",
   "js/ui.js", "js/app.js",
 ];
 
