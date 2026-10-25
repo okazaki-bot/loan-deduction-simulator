@@ -49,9 +49,53 @@ main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
 }
 .hint { font-size: 12px; color: #555; margin: 0 0 12px; }
 
-/* ---- 源泉徴収票 slips ---- */
-.slips { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 900px) { .slips { grid-template-columns: 1fr; } }
+/* ---- 源泉徴収票 slips（帳票は横幅いっぱいに縦積み） ---- */
+.slips { display: flex; flex-direction: column; gap: 18px; }
+
+/* ==== 帳票風グリッド（実際の源泉徴収票に寄せたレイアウト） ==== */
+.slip2 { border: 2px solid #333; border-radius: 4px; overflow: hidden; background: #fff; }
+.slip2-head { padding: 6px 12px; font-weight: 700; color: #fff; font-size: 14px; }
+.slip2.head .slip2-head { background: var(--head); }
+.slip2.spouse .slip2-head { background: var(--spouse); }
+.slip-grid { display: block; }
+.slip-row { display: grid; border-top: 1px solid #9aa2ad; }
+.slip-row.band { border-top: none; }
+.scell { border-left: 1px solid #c4ccd6; padding: 3px 7px 5px; min-width: 0; }
+.slip-row > .scell:first-child { border-left: none; }
+.scell-label { font-size: 10px; color: #555; line-height: 1.25; margin-bottom: 2px; min-height: 13px; }
+.scell input[type="number"], .scell select {
+  width: 100%; border: 1px solid #d0d5dd; border-radius: 3px; background: #fff;
+  text-align: right; font-size: 13px; padding: 4px 4px; font-family: inherit;
+}
+.scell select { text-align: left; }
+.scell input:focus, .scell select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.scalc { text-align: right; font-weight: 700; color: var(--accent); font-size: 14px; padding: 4px 2px; }
+/* 上段バンドは項目名を中央寄せ・値を大きく */
+.slip-row.band .scell { padding: 5px 7px 7px; }
+.slip-row.band .scell-label { text-align: center; font-weight: 600; min-height: 26px; display: flex; align-items: center; justify-content: center; }
+.slip-row.band .scell input { font-size: 15px; }
+.scell.hi { background: #fff7ed; }
+.scell.hi .scell-label { color: var(--spouse); }
+.scalc.hi { color: var(--spouse); font-size: 16px; }
+/* 小マスの束（扶養親族の数・生命保険料の内訳） */
+.scell.grp { padding-bottom: 0; }
+.sgroup { display: grid; }
+.ssub { border-left: 1px dotted #c4ccd6; padding: 0 3px 4px; }
+.sgroup > .ssub:first-child { border-left: none; }
+.ssub-label { font-size: 9px; color: #777; text-align: center; margin-bottom: 1px; }
+.ssub input[type="number"] { width: 100%; border: 1px solid #d0d5dd; border-radius: 3px; text-align: right; font-size: 12px; padding: 3px 3px; font-family: inherit; background: #fff; }
+.ssub input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+/* 本人該当チェック */
+.schecks { display: flex; flex-wrap: wrap; gap: 3px 16px; padding: 2px 0 4px; }
+.schk { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.schk input { margin: 0; }
+/* 追加入力の注記 */
+.slip-note { font-size: 10px; color: #8a6d3b; background: #fdf6ec; padding: 3px 8px; border-top: 1px solid #9aa2ad; }
+@media (max-width: 760px) {
+  .slip-row { grid-template-columns: 1fr !important; }
+  .slip-row > .scell { border-left: none; border-top: 1px solid #e2e5ea; }
+  .slip-row > .scell:first-child { border-top: none; }
+}
 
 .slip {
   border: 2px solid var(--line-strong);

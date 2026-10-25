@@ -17,138 +17,123 @@ function el(tag, props = {}, children = []) {
   return n;
 }
 
-// 源泉徴収票 各セクション定義（key = engineのpersonフィールド）
-const SLIP_SECTIONS = [
-  {
-    band: true, // 源泉徴収票の上段（支払金額→給与所得控除後→所得控除合計→源泉徴収税額）
-    fields: [
-      { key: "incomeP10", label: "支払金額", num: true },
-      { key: "_ae10", label: "給与所得控除後の金額", computed: true },
-      { key: "_j52", label: "所得控除の額の合計額", computed: true },
-      { key: "_withholding", label: "源泉徴収税額", computed: true, highlight: true },
-    ],
-  },
-  {
-    sub: "配偶者",
-    fields: [
-      { key: "hasSpouseDeduction", label: "控除対象配偶者", small: "配偶者控除の対象", boolSelect: [["無", "無"], ["有", "有"]], trueVal: "有" },
-      { key: "spouseIncome", label: "配偶者の合計所得", small: "配偶者特別控除の判定に使用", num: true },
-    ],
-  },
-  {
-    sub: "控除対象扶養親族の数（人）",
-    fields: [
-      { key: "depSpecified", label: "特定扶養（19〜22歳）", num: true },
-      { key: "depElderly", label: "老人扶養（70歳以上・内数）", num: true },
-      { key: "depElderlyCohab", label: "うち同居老親等", num: true },
-      { key: "depGeneral", label: "その他（一般）扶養", small: "16〜18・23〜69歳", num: true },
-      { key: "depUnder16", label: "16歳未満の扶養親族", num: true },
-    ],
-  },
-  {
-    sub: "障害者の数（人）",
-    fields: [
-      { key: "disabledSpecial", label: "特別障害者（計・同居含む）", num: true },
-      { key: "disabledSpecialCohab", label: "うち同居特別障害者", num: true },
-      { key: "disabledGeneral", label: "一般障害者", num: true },
-    ],
-  },
-  {
-    sub: "保険料控除",
-    fields: [
-      { key: "socialInsurance", label: "社会保険料等の金額", num: true },
-      { key: "lifeNewGeneral", label: "新生命保険料の金額", num: true },
-      { key: "lifeOldGeneral", label: "旧生命保険料の金額", num: true },
-      { key: "lifeNursing", label: "介護医療保険料の金額", num: true },
-      { key: "pensionNew", label: "新個人年金保険料の金額", num: true },
-      { key: "pensionOld", label: "旧個人年金保険料の金額", num: true },
-      { key: "earthquakeInsurance", label: "地震保険料の控除額", num: true },
-    ],
-  },
-  {
-    sub: "本人の状況（該当すれば✓）",
-    checks: [
+// 源泉徴収票を帳票風グリッドで再現。各 row = セル配列。cell種類:
+//  in=数値入力 / sel=選択(bool) / calc=計算値表示 / grp=小マスの束(扶養・内訳) / chk=チェック群
+const SLIP_ROWS = [
+  { band: true, cols: "1fr 1fr 1fr 1fr", cells: [
+    { k: "in",   key: "incomeP10",     label: "支払金額" },
+    { k: "calc", key: "_ae10",         label: "給与所得控除後の金額（調整控除後）" },
+    { k: "calc", key: "_j52",          label: "所得控除の額の合計額" },
+    { k: "calc", key: "_withholding",  label: "源泉徴収税額", hi: true },
+  ]},
+  { cols: "1.2fr 1.1fr 2.6fr 0.9fr 1.9fr", cells: [
+    { k: "sel", key: "hasSpouseDeduction", label: "(源泉)控除対象配偶者", options: [["無", "無"], ["有", "有"]], trueVal: "有" },
+    { k: "in",  key: "spouseIncome", label: "配偶者の合計所得" },
+    { k: "grp", label: "控除対象扶養親族の数（人）", sub: [
+      { key: "depSpecified",   label: "特定" },
+      { key: "depElderly",     label: "老人" },
+      { key: "depElderlyCohab",label: "内 同居老親" },
+      { key: "depGeneral",     label: "その他" },
+    ]},
+    { k: "in",  key: "depUnder16", label: "16歳未満の扶養親族（人）" },
+    { k: "grp", label: "障害者の数（人）", sub: [
+      { key: "disabledSpecial",     label: "特別" },
+      { key: "disabledSpecialCohab",label: "内 同居" },
+      { key: "disabledGeneral",     label: "その他" },
+    ]},
+  ]},
+  { cols: "1fr 1fr 1fr", cells: [
+    { k: "in",   key: "socialInsurance",    label: "社会保険料等の金額" },
+    { k: "calc", key: "_j10",               label: "生命保険料の控除額" },
+    { k: "in",   key: "earthquakeInsurance",label: "地震保険料の控除額" },
+  ]},
+  { cols: "1fr", cells: [
+    { k: "grp", label: "生命保険料の金額の内訳", sub: [
+      { key: "lifeNewGeneral", label: "新生命保険料" },
+      { key: "lifeOldGeneral", label: "旧生命保険料" },
+      { key: "lifeNursing",    label: "介護医療保険料" },
+      { key: "pensionNew",     label: "新個人年金保険料" },
+      { key: "pensionOld",     label: "旧個人年金保険料" },
+    ]},
+  ]},
+  { cols: "1fr", cells: [
+    { k: "chk", label: "本人が該当する事項（✓）", items: [
       { key: "isWidow", label: "寡婦" },
       { key: "isSingleParent", label: "ひとり親" },
       { key: "isWorkingStudent", label: "勤労学生" },
       { key: "selfDisabledSpecial", label: "本人が特別障害者" },
       { key: "selfDisabledGeneral", label: "本人が一般障害者" },
       { key: "isMinor", label: "未成年（20歳未満）" },
-    ],
-  },
-  {
-    sub: "住民税・将来投影",
-    fields: [
-      { key: "residentFlatPref", label: "均等割額（都道府県）", num: true, def: 2000 },
-      { key: "residentFlatCity", label: "均等割額（市区町村）", num: true, def: 3000 },
-      { key: "incomeUpRate", label: "所得年間UP率（％）", small: "翌年以降の給与上昇率", num: true },
-    ],
-  },
+    ]},
+  ]},
+  { extra: true, cols: "1fr 1fr 1fr", cells: [
+    { k: "in", key: "residentFlatPref", label: "住民税 均等割（都道府県）", def: 2000 },
+    { k: "in", key: "residentFlatCity", label: "住民税 均等割（市区町村）", def: 3000 },
+    { k: "in", key: "incomeUpRate",     label: "所得年間UP率（％）" },
+  ]},
 ];
 
-function slipField(who, f) {
-  const id = `${who}.${f.key}`;
-  if (f.computed) {
-    return el("div", { class: "fld computed" }, [
-      el("label", {}, [f.label]),
-      el("input", { type: "text", id, readonly: "readonly", value: "0" }),
-    ]);
+// 全入力項目を走査（収集・列挙用）。calc(計算値)は含めない。
+function eachField(cb) {
+  for (const row of SLIP_ROWS) for (const cell of row.cells) {
+    if (cell.k === "in") cb({ kind: "num", key: cell.key });
+    else if (cell.k === "sel") cb({ kind: "bool", key: cell.key, trueVal: cell.trueVal });
+    else if (cell.k === "grp") for (const s of cell.sub) cb({ kind: "num", key: s.key });
+    else if (cell.k === "chk") for (const it of cell.items) cb({ kind: "chk", key: it.key });
   }
-  const lab = el("label", {}, [f.label]);
-  if (f.small) lab.appendChild(el("small", {}, [f.small]));
-  if (f.boolSelect) {
-    const sel = el("select", { id });
-    for (const [val, text] of f.boolSelect) sel.appendChild(el("option", { value: val }, [text]));
-    return el("div", { class: "fld" }, [lab, sel]);
-  }
-  const input = el("input", {
-    type: "number", id, step: "any",
-    value: f.def != null ? String(f.def) : "",
-    placeholder: "0",
-  });
-  return el("div", { class: "fld" }, [lab, input]);
 }
 
-// 源泉徴収票 上段の横並びバンド（4ボックス）
-function renderBand(who, fields) {
-  const band = el("div", { class: "slip-band" });
-  for (const f of fields) {
-    const cls = "band-box" + (f.computed ? " computed" : "") + (f.highlight ? " highlight" : "");
-    const box = el("div", { class: cls }, [el("div", { class: "bl" }, [f.label])]);
-    if (f.computed) {
-      box.appendChild(el("div", { class: "bv", id: `${who}.${f.key}` }, ["0円"]));
-    } else {
-      box.appendChild(el("input", { type: "number", id: `${who}.${f.key}`, step: "any", placeholder: "0" }));
-    }
-    band.appendChild(box);
-  }
-  return band;
+function numInput(id, def) {
+  return el("input", { type: "number", id, step: "any", value: def != null ? String(def) : "", placeholder: "0" });
 }
 
-function renderSlip(who, title, subtitle) {
-  const body = el("div", { class: "box-grid" });
-  for (const sec of SLIP_SECTIONS) {
-    if (sec.band) { body.appendChild(renderBand(who, sec.fields)); continue; }
-    body.appendChild(el("div", { class: "slip-sub" }, [sec.sub]));
-    if (sec.fields) {
-      for (const f of sec.fields) body.appendChild(slipField(who, f));
+function renderCell(who, cell) {
+  // 小マスの束（扶養親族の数・生命保険料の内訳）
+  if (cell.k === "grp") {
+    const sub = el("div", { class: "sgroup", style: `grid-template-columns:repeat(${cell.sub.length},1fr)` });
+    for (const s of cell.sub) {
+      sub.appendChild(el("div", { class: "ssub" }, [
+        el("div", { class: "ssub-label" }, [s.label]),
+        numInput(`${who}.${s.key}`, s.def),
+      ]));
     }
-    if (sec.checks) {
-      const grid = el("div", { class: "chk-grid" });
-      for (const c of sec.checks) {
-        grid.appendChild(el("label", { class: "chk" }, [
-          el("input", { type: "checkbox", id: `${who}.${c.key}` }),
-          c.label,
-        ]));
-      }
-      body.appendChild(grid);
-    }
+    return el("div", { class: "scell grp" }, [el("div", { class: "scell-label" }, [cell.label]), sub]);
   }
-  return el("div", { class: `slip ${who}` }, [
-    el("div", { class: "slip-head" }, [title]),
-    subtitle ? el("div", { class: "slip-sub" }, [subtitle]) : null,
-    body,
-  ]);
+  if (cell.k === "chk") {
+    const grid = el("div", { class: "schecks" });
+    for (const it of cell.items) {
+      grid.appendChild(el("label", { class: "schk" }, [
+        el("input", { type: "checkbox", id: `${who}.${it.key}` }), it.label,
+      ]));
+    }
+    return el("div", { class: "scell" }, [el("div", { class: "scell-label" }, [cell.label]), grid]);
+  }
+  let content;
+  if (cell.k === "calc") {
+    content = el("div", { class: "scalc" + (cell.hi ? " hi" : ""), id: `${who}.${cell.key}` }, ["0円"]);
+  } else if (cell.k === "sel") {
+    content = el("select", { id: `${who}.${cell.key}` });
+    for (const [v, t] of cell.options) content.appendChild(el("option", { value: v }, [t]));
+  } else {
+    content = numInput(`${who}.${cell.key}`, cell.def);
+  }
+  return el("div", { class: "scell" + (cell.hi ? " hi" : "") }, [el("div", { class: "scell-label" }, [cell.label]), content]);
+}
+
+function renderSlip(who, title) {
+  const grid = el("div", { class: "slip-grid" });
+  for (const row of SLIP_ROWS) {
+    if (row.extra) {
+      grid.appendChild(el("div", { class: "slip-note" }, ["▼ シミュレーション用の追加入力（源泉徴収票にはない項目）"]));
+    }
+    const r = el("div", {
+      class: "slip-row" + (row.band ? " band" : "") + (row.extra ? " extra" : ""),
+      style: `grid-template-columns:${row.cols}`,
+    });
+    for (const cell of row.cells) r.appendChild(renderCell(who, cell));
+    grid.appendChild(r);
+  }
+  return el("div", { class: `slip2 ${who}` }, [el("div", { class: "slip2-head" }, [title]), grid]);
 }
 
 // --- 借り入れ比率フォーム ---
@@ -218,15 +203,11 @@ function selVal(id) {
 
 function collectPerson(who) {
   const p = {};
-  for (const sec of SLIP_SECTIONS) {
-    for (const f of (sec.fields || [])) {
-      if (f.computed) continue;
-      if (f.boolSelect) p[f.key] = selVal(`${who}.${f.key}`) === f.trueVal;
-      else if (f.check) p[f.key] = chkVal(`${who}.${f.key}`);
-      else p[f.key] = numVal(`${who}.${f.key}`);
-    }
-    for (const c of (sec.checks || [])) p[c.key] = chkVal(`${who}.${c.key}`);
-  }
+  eachField((f) => {
+    if (f.kind === "num") p[f.key] = numVal(`${who}.${f.key}`);
+    else if (f.kind === "bool") p[f.key] = selVal(`${who}.${f.key}`) === f.trueVal;
+    else if (f.kind === "chk") p[f.key] = chkVal(`${who}.${f.key}`);
+  });
   return p;
 }
 
@@ -311,6 +292,7 @@ function setComputed(who, personRes) {
   setBox(`${who}._ae10`, z ? yen(personRes.ae10) : "0円");
   setBox(`${who}._j52`, z ? yen(personRes.deductions.J52) : "0円");
   setBox(`${who}._withholding`, z ? yen(personRes.withholdingTax) : "0円");
+  setBox(`${who}._j10`, yen(personRes.deductions.J10)); // 生命保険料控除（収入に依存しない）
 }
 
 function buildDetailTable(result) {
