@@ -1,10 +1,9 @@
 // engine.js — 入力(源泉徴収票2人分＋借り入れ比率)から減税額一覧表・夫婦合計までを計算する
 // 統合オーケストレータ。UIとNode検証(oracle照合)の両方から呼ばれる純粋関数。
 
-import { FLOOR } from "./excel.js";
 import { kyuyoShotoku, incomeTaxDeductions } from "./deductions.js";
 import { withholdingIncomeTax } from "./tax.js";
-import { yearEndBalances } from "./amort.js";
+import { yearEndBalances, buildVariableRates } from "./loansim.js";
 import { housing13Years } from "./loan.js";
 import { HOUSING_TYPES } from "./constants.js";
 
@@ -42,62 +41,69 @@ export function defaultPerson() {
   };
 }
 
-export function defaultLoan() {
+// 物件の区分（世帯主・配偶者で共通）。借入限度額・控除期間の決定に使う。
+export function defaultProperty() {
+  return { isNew: true, isChildcare: false };
+}
+
+// 1人分のローンプラン（標準的なローン計算サイト方式・ペアローン）。
+export function defaultLoanPlan() {
   return {
-    landPrice: 0,        // 土地金額(D2)
-    buildingPrice: 0,    // 建物金額 税抜(D3)
-    miscCost: 0,         // 諸経費(D5)
-    selfFundHead: 0,     // 自己資金 世帯主(D7)
-    selfFundSpouse: 0,   // 自己資金 配偶者(D8)
-    isNew: true,         // 住宅区分 新築=true/既存=false(D11)
-    isChildcare: false,  // 子育て・若者夫婦世帯(D12)
-    ownershipHead: 1,    // 持分比率 世帯主(F14) 0..1（配偶者=1-これ）
-    headFlatShare: 1,    // 世帯主フラット35利用率(F23)
-    headBonusShare: 0,   // 世帯主ボーナス割合(G23)
-    spouseFlatShare: 1,  // 配偶者フラット35利用率(L23)
-    spouseBonusShare: 0, // 配偶者ボーナス割合(M23)
-    flatRate: 1.43,      // フラット金利 当初10年(D24)
-    flatRate11: 1.43,    // フラット金利 11年〜(D25)
-    flatYears: 35,       // フラット返済年数(E24)
-    bankRate: 2,         // 銀行金利(D27)
-    bankYears: 20,       // 銀行返済年数(E27)
+    principalManyen: 0,     // 借入金額（万円）
+    years: 35,              // 返済期間（年）
+    extraMonths: 0,         // 端数（ヶ月）
+    method: "level",        // 'level'=元利均等 / 'principal'=元金均等
+    rateType: "fixed",      // 'fixed'=固定/段階 / 'variable'=変動
+    fixedRates: [{ fromYear: 1, pct: 1.0 }], // 固定/段階（当初＋N年目から…）
+    varInitPct: 0.5,        // 変動: 当初金利
+    varEveryYears: 5,       // 変動: 何年ごとに見直し
+    varStepPct: 0.25,       // 変動: 1回あたり上昇幅
+    varCapPct: "",          // 変動: 上限（空=なし）
+    bonusManyen: 0,         // うちボーナス返済分（万円）
+    bonusM1: 6,             // ボーナス月1
+    bonusM2: 12,            // ボーナス月2
+    fiveYearRule: false,    // 5年ルール（元利均等のみ）
+    rule125: true,          // 125%ルール（5年ルール適用時）
   };
 }
 
-// 借入金額を世帯主/配偶者・フラット/銀行・月々/ボーナスに按分し、各人のローンパラメータを返す。
-function splitLoan(loan) {
-  const d4 = FLOOR(loan.buildingPrice * 1.1, 1);   // 建物税込
-  const d6 = loan.landPrice + d4 + loan.miscCost;  // 合計
-  const d9 = loan.selfFundHead + loan.selfFundSpouse; // 自己資金合計
-  const d10 = d6 - d9;                             // 借入金額
-  const headBorrow = d10 * loan.ownershipHead;
-  const spouseBorrow = d10 * (1 - loan.ownershipHead);
-
-  const mkParams = (borrow, flatShare, bonusShare) => ({
-    flatMonthlyPrincipal: borrow * flatShare * (1 - bonusShare),
-    flatBonusPrincipal: borrow * flatShare * bonusShare,
-    bankMonthlyPrincipal: borrow * (1 - flatShare),
-    bankBonusPrincipal: 0, // 銀行ボーナス割合(G26/M26)は既定0
-    flatYears: loan.flatYears,
-    flatRate: loan.flatRate,
-    flatRate11: loan.flatRate11,
-    bankYears: loan.bankYears,
-    bankRate: loan.bankRate,
-  });
-
+// ローンプラン → simulateLoan の cfg（繰上返済は非対応なので prepayments は空）。
+function planToCfg(plan) {
+  const principal = Math.round((plan.principalManyen || 0) * 10000);
+  const months = Math.round((plan.years || 0) * 12 + (plan.extraMonths || 0));
+  let rates;
+  if (plan.rateType === "variable") {
+    rates = buildVariableRates(
+      plan.varInitPct || 0, plan.varEveryYears || 5, plan.varStepPct || 0,
+      plan.varCapPct === "" || plan.varCapPct == null ? "" : Number(plan.varCapPct),
+      Math.max(1, Math.ceil(months / 12)),
+    );
+  } else {
+    rates = (plan.fixedRates && plan.fixedRates.length ? plan.fixedRates : [{ fromYear: 1, pct: 0 }])
+      .map((seg, i) => ({
+        fromMonth: i === 0 ? 1 : ((Number(seg.fromYear) || 1) - 1) * 12 + 1,
+        annual: (Number(seg.pct) || 0) / 100,
+      }))
+      .sort((a, b) => a.fromMonth - b.fromMonth);
+  }
+  const bonusPrincipal = Math.round((plan.bonusManyen || 0) * 10000);
+  const bonusMonths = bonusPrincipal > 0
+    ? [...new Set([Number(plan.bonusM1) || 6, Number(plan.bonusM2) || 12])]
+    : [];
   return {
-    totals: { d4, d6, d9, d10, headBorrow, spouseBorrow },
-    head: mkParams(headBorrow, loan.headFlatShare, loan.headBonusShare),
-    spouse: mkParams(spouseBorrow, loan.spouseFlatShare, loan.spouseBonusShare),
+    principal, bonusPrincipal, months, method: plan.method || "level", rates,
+    startYear: 1, startMonth: 1, bonusMonths, prepayments: [],
+    fiveYearRule: !!plan.fiveYearRule && plan.method === "level",
+    rule125: plan.rule125 !== false,
   };
 }
 
-// 1人分: 給与所得後・所得控除合計・13年ローン残高・住宅4種の13年控除を計算。
-function computePerson(person, loanParams, isNew, isChildcare, applyUpRateAllYears) {
+// 1人分: 給与所得後・所得控除合計・源泉徴収税額・13年ローン残高・住宅4種の13年控除。
+function computePerson(person, plan, prop, applyUpRateAllYears) {
   const ae10 = kyuyoShotoku(person.incomeP10);
   const ded = incomeTaxDeductions(person, ae10);
   const withholdingTax = withholdingIncomeTax(ae10, ded.J52); // 現在の源泉徴収税額(源泉!BI10)
-  const balances = yearEndBalances(loanParams);
+  const balances = yearEndBalances(planToCfg(plan));
   const byHousing = {};
   for (const h of HOUSING_TYPES) {
     byHousing[h] = housing13Years({
@@ -105,8 +111,8 @@ function computePerson(person, loanParams, isNew, isChildcare, applyUpRateAllYea
       bd: ded.J52,
       balances,
       housingType: h,
-      isNew,
-      isChildcare,
+      isNew: prop.isNew,
+      isChildcare: prop.isChildcare,
       upRatePct: person.incomeUpRate,
       applyUpRateAllYears,
     });
@@ -114,28 +120,27 @@ function computePerson(person, loanParams, isNew, isChildcare, applyUpRateAllYea
   return { ae10, deductions: ded, withholdingTax, balances, byHousing };
 }
 
-// メインエントリ。input = { head, spouse, loan, options:{applyUpRateAllYears} }
+// メインエントリ。input = { head, spouse, loanHead, loanSpouse, property, options }
 export function calculate(input) {
   const head = { ...defaultPerson(), ...(input.head || {}) };
   const spouse = { ...defaultPerson(), ...(input.spouse || {}) };
-  const loan = { ...defaultLoan(), ...(input.loan || {}) };
+  const loanHead = { ...defaultLoanPlan(), ...(input.loanHead || {}) };
+  const loanSpouse = { ...defaultLoanPlan(), ...(input.loanSpouse || {}) };
+  const property = { ...defaultProperty(), ...(input.property || {}) };
   const applyUpRateAllYears = input.options?.applyUpRateAllYears ?? true; // 既定=修正版
 
-  const split = splitLoan(loan);
-  const headRes = computePerson(head, split.head, loan.isNew, loan.isChildcare, applyUpRateAllYears);
-  const spouseRes = computePerson(spouse, split.spouse, loan.isNew, loan.isChildcare, applyUpRateAllYears);
+  const headRes = computePerson(head, loanHead, property, applyUpRateAllYears);
+  const spouseRes = computePerson(spouse, loanSpouse, property, applyUpRateAllYears);
 
   // 減税額一覧表 + 夫婦合計
   const summary = {};
   for (const h of HOUSING_TYPES) {
-    const headTotal = headRes.byHousing[h].total;
-    const spouseTotal = spouseRes.byHousing[h].total;
     summary[h] = {
       head: headRes.byHousing[h],
       spouse: spouseRes.byHousing[h],
-      coupleTotal: headTotal + spouseTotal, // 借り入れ比率!J3..J6
+      coupleTotal: headRes.byHousing[h].total + spouseRes.byHousing[h].total,
     };
   }
 
-  return { loanSplit: split.totals, head: headRes, spouse: spouseRes, summary };
+  return { head: headRes, spouse: spouseRes, summary };
 }

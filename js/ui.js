@@ -146,6 +146,7 @@ function lf(id, label, opts = {}) {
     control = el("select", { id });
     for (const [val, text] of opts.select) control.appendChild(el("option", { value: val }, [text]));
     if (opts.def != null) control.value = opts.def;
+    if (opts.onchange) control.addEventListener("change", opts.onchange);
   } else {
     const input = el("input", { type: "number", id, step: "any", value: opts.def != null ? String(opts.def) : "", placeholder: "0" });
     if (opts.unit) {
@@ -156,32 +157,83 @@ function lf(id, label, opts = {}) {
   return wrap;
 }
 
+// 段階金利の1行（2年目以降）
+function segRow(fromYear = 11, pct = 1.5) {
+  const row = el("div", { class: "seg-row" }, [
+    el("input", { type: "number", class: "seg-from", value: String(fromYear), min: "2", max: "50" }),
+    el("span", { class: "u" }, ["年目から"]),
+    el("input", { type: "number", class: "seg-pct", value: String(pct), step: "0.01", min: "0" }),
+    el("span", { class: "u" }, ["％"]),
+    el("button", { type: "button", class: "mini-btn del", onclick: (e) => {
+      const c = e.target.closest(".seg-row").parentElement;
+      e.target.closest(".seg-row").remove();
+      c.dispatchEvent(new Event("input", { bubbles: true }));
+    } }, ["削除"]),
+  ]);
+  return row;
+}
+
+// 1人分のローン入力カード（標準的な住宅ローン計算サイト方式）。prefix = loanHead / loanSpouse
+function renderLoanCard(prefix, title, cls) {
+  const toggle = () => {
+    const isVar = selVal(`${prefix}.rateType`) === "variable";
+    document.getElementById(`${prefix}.fixedArea`).classList.toggle("hidden", isVar);
+    document.getElementById(`${prefix}.varArea`).classList.toggle("hidden", !isVar);
+    const isLevel = selVal(`${prefix}.method`) === "level";
+    document.getElementById(`${prefix}.ruleArea`).classList.toggle("hidden", !isLevel);
+  };
+  const segs = el("div", { class: "segs", id: `${prefix}.segs` });
+
+  const card = el("div", { class: `loan-card ${cls}` }, [
+    el("div", { class: "loan-card-head" }, [title]),
+    el("div", { class: "loan-card-body" }, [
+      lf(`${prefix}.principalManyen`, "借入金額", { unit: "万円" }),
+      lf(`${prefix}.years`, "返済期間", { def: 35, unit: "年" }),
+      lf(`${prefix}.method`, "返済方式", { select: [["level", "元利均等"], ["principal", "元金均等"]], def: "level", onchange: toggle }),
+      lf(`${prefix}.rateType`, "金利タイプ", { select: [["fixed", "固定・段階金利"], ["variable", "変動金利（上昇想定）"]], def: "fixed", onchange: toggle }),
+
+      // 固定・段階
+      el("div", { class: "rate-area", id: `${prefix}.fixedArea` }, [
+        lf(`${prefix}.rate0`, "当初金利", { def: 1.0, unit: "％" }),
+        segs,
+        el("button", { type: "button", class: "mini-btn add", onclick: () => {
+          segs.appendChild(segRow());
+          segs.dispatchEvent(new Event("input", { bubbles: true }));
+        } }, ["＋段階（N年目から金利変更）を追加"]),
+      ]),
+
+      // 変動
+      el("div", { class: "rate-area hidden", id: `${prefix}.varArea` }, [
+        lf(`${prefix}.varInitPct`, "当初金利", { def: 0.5, unit: "％" }),
+        lf(`${prefix}.varEveryYears`, "見直し間隔", { def: 5, unit: "年ごと" }),
+        lf(`${prefix}.varStepPct`, "1回の上昇幅", { def: 0.25, unit: "％" }),
+        lf(`${prefix}.varCapPct`, "金利上限", { small: "空欄＝上限なし", unit: "％" }),
+      ]),
+
+      lf(`${prefix}.bonusManyen`, "うちボーナス返済分", { small: "0なら毎月払いのみ", unit: "万円" }),
+
+      el("div", { class: "rule-area", id: `${prefix}.ruleArea` }, [
+        el("label", { class: "chk" }, [el("input", { type: "checkbox", id: `${prefix}.fiveYearRule` }), "5年ルール"]),
+        el("label", { class: "chk" }, [el("input", { type: "checkbox", id: `${prefix}.rule125`, checked: "checked" }), "125%ルール"]),
+        el("span", { class: "rule-note" }, ["（変動金利の返済額急増を抑える・元利均等のみ）"]),
+      ]),
+    ]),
+  ]);
+  return card;
+}
+
 function renderLoan() {
-  return el("div", { class: "loan-grid" }, [
-    el("div", { class: "loan-sub" }, ["物件・資金"]),
-    lf("loan.landPrice", "土地金額", { unit: "円" }),
-    lf("loan.buildingPrice", "建物金額（税抜）", { unit: "円" }),
-    lf("loan.miscCost", "諸経費", { unit: "円" }),
-    lf("loan.selfFundHead", "自己資金（世帯主）", { unit: "円" }),
-    lf("loan.selfFundSpouse", "自己資金（配偶者）", { unit: "円" }),
-    lf("loan.ownershipHead", "持分比率（世帯主）", { small: "0〜1。配偶者＝1−この値", def: 1, unit: "" }),
-
-    el("div", { class: "loan-sub" }, ["住宅の区分"]),
-    lf("loan.isNew", "住宅区分", { select: [["新築", "新築"], ["既存", "既存（中古・買取再販以外）"]], def: "新築" }),
-    lf("loan.isChildcare", "子育て・若者夫婦世帯", { small: "19歳未満の子 or 夫婦いずれか40歳未満", select: [["×", "×（該当なし）"], ["○", "○（該当）"]], def: "×" }),
-
-    el("div", { class: "loan-sub" }, ["フラット35 / 銀行の借り方"]),
-    lf("loan.headFlatShare", "世帯主 フラット35利用率", { small: "0〜1（残りは銀行）", def: 1, unit: "" }),
-    lf("loan.headBonusShare", "世帯主 ボーナス返済割合", { def: 0, unit: "" }),
-    lf("loan.spouseFlatShare", "配偶者 フラット35利用率", { def: 1, unit: "" }),
-    lf("loan.spouseBonusShare", "配偶者 ボーナス返済割合", { def: 0, unit: "" }),
-
-    el("div", { class: "loan-sub" }, ["金利・返済年数（世帯主・配偶者 共通）"]),
-    lf("loan.flatRate", "フラット金利（当初10年）", { def: 1.43, unit: "％" }),
-    lf("loan.flatRate11", "フラット金利（11年〜）", { def: 1.43, unit: "％" }),
-    lf("loan.flatYears", "フラット返済年数", { def: 35, unit: "年" }),
-    lf("loan.bankRate", "銀行 金利", { def: 2, unit: "％" }),
-    lf("loan.bankYears", "銀行 返済年数", { def: 20, unit: "年" }),
+  return el("div", {}, [
+    el("div", { class: "loan-grid" }, [
+      el("div", { class: "loan-sub" }, ["物件の区分（世帯主・配偶者 共通）"]),
+      lf("property.isNew", "住宅区分", { select: [["新築", "新築"], ["既存", "既存（中古・買取再販以外）"]], def: "新築" }),
+      lf("property.isChildcare", "子育て・若者夫婦世帯", { small: "19歳未満の子 or 夫婦いずれか40歳未満", select: [["×", "×（該当なし）"], ["○", "○（該当）"]], def: "×" }),
+    ]),
+    el("p", { class: "hint", html: "ペアローン対応：世帯主・配偶者それぞれのローンを入力してください（片方のみでもOK。借入金額0の人は計算しません）。" }),
+    el("div", { class: "loan-cards" }, [
+      renderLoanCard("loanHead", "世帯主（ご主人）のローン", "head"),
+      renderLoanCard("loanSpouse", "配偶者（奥様）のローン", "spouse"),
+    ]),
   ]);
 }
 
@@ -211,28 +263,46 @@ function collectPerson(who) {
   return p;
 }
 
+function collectLoanPlan(prefix) {
+  // 固定・段階金利の段を収集（1段目＝当初金利、2段目以降＝seg-row）
+  const fixedRates = [{ fromYear: 1, pct: numVal(`${prefix}.rate0`) }];
+  const segsEl = document.getElementById(`${prefix}.segs`);
+  if (segsEl) {
+    for (const row of segsEl.querySelectorAll(".seg-row")) {
+      const from = parseFloat(row.querySelector(".seg-from").value) || 1;
+      const pct = parseFloat(row.querySelector(".seg-pct").value) || 0;
+      fixedRates.push({ fromYear: from, pct });
+    }
+  }
+  const capEl = document.getElementById(`${prefix}.varCapPct`);
+  return {
+    principalManyen: numVal(`${prefix}.principalManyen`),
+    years: numVal(`${prefix}.years`),
+    extraMonths: 0,
+    method: selVal(`${prefix}.method`),
+    rateType: selVal(`${prefix}.rateType`),
+    fixedRates,
+    varInitPct: numVal(`${prefix}.varInitPct`),
+    varEveryYears: numVal(`${prefix}.varEveryYears`),
+    varStepPct: numVal(`${prefix}.varStepPct`),
+    varCapPct: capEl && capEl.value !== "" ? parseFloat(capEl.value) : "",
+    bonusManyen: numVal(`${prefix}.bonusManyen`),
+    bonusM1: numVal(`${prefix}.bonusM1`) || 6,
+    bonusM2: numVal(`${prefix}.bonusM2`) || 12,
+    fiveYearRule: chkVal(`${prefix}.fiveYearRule`),
+    rule125: chkVal(`${prefix}.rule125`),
+  };
+}
+
 export function collectInput() {
   return {
     head: collectPerson("head"),
     spouse: collectPerson("spouse"),
-    loan: {
-      landPrice: numVal("loan.landPrice"),
-      buildingPrice: numVal("loan.buildingPrice"),
-      miscCost: numVal("loan.miscCost"),
-      selfFundHead: numVal("loan.selfFundHead"),
-      selfFundSpouse: numVal("loan.selfFundSpouse"),
-      ownershipHead: numVal("loan.ownershipHead"),
-      isNew: selVal("loan.isNew") === "新築",
-      isChildcare: selVal("loan.isChildcare") === "○",
-      headFlatShare: numVal("loan.headFlatShare"),
-      headBonusShare: numVal("loan.headBonusShare"),
-      spouseFlatShare: numVal("loan.spouseFlatShare"),
-      spouseBonusShare: numVal("loan.spouseBonusShare"),
-      flatRate: numVal("loan.flatRate"),
-      flatRate11: numVal("loan.flatRate11"),
-      flatYears: numVal("loan.flatYears"),
-      bankRate: numVal("loan.bankRate"),
-      bankYears: numVal("loan.bankYears"),
+    loanHead: collectLoanPlan("loanHead"),
+    loanSpouse: collectLoanPlan("loanSpouse"),
+    property: {
+      isNew: selVal("property.isNew") === "新築",
+      isChildcare: selVal("property.isChildcare") === "○",
     },
     options: { applyUpRateAllYears: chkVal("opt-uprate-fix") },
   };

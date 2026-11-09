@@ -184,6 +184,28 @@ main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
 .lf .with-unit input { width: 100%; }
 .lf .u { font-size: 11px; color: #888; white-space: nowrap; }
 
+/* ---- ペアローン カード ---- */
+.hidden { display: none !important; }
+.loan-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+@media (max-width: 820px) { .loan-cards { grid-template-columns: 1fr; } }
+.loan-card { border: 1px solid #c4ccd6; border-radius: 6px; overflow: hidden; background: #fff; }
+.loan-card-head { padding: 6px 12px; font-weight: 700; color: #fff; font-size: 13px; }
+.loan-card.head .loan-card-head { background: var(--head); }
+.loan-card.spouse .loan-card-head { background: var(--spouse); }
+.loan-card-body { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+.rate-area { border: 1px dashed #cbd5e1; border-radius: 5px; padding: 9px; display: flex; flex-direction: column; gap: 9px; background: #fafbfc; }
+.segs { display: flex; flex-direction: column; gap: 5px; }
+.seg-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.seg-row input { width: 62px; padding: 4px 5px; border: 1px solid #c3c9d2; border-radius: 4px; text-align: right; font-family: inherit; font-size: 12px; }
+.seg-row .u { font-size: 11px; color: #777; }
+.mini-btn { font-size: 11px; padding: 4px 9px; border: 1px solid #b7c0cc; background: #eef1f5; border-radius: 4px; cursor: pointer; font-family: inherit; }
+.mini-btn:hover { background: #e2e7ee; }
+.mini-btn.add { align-self: flex-start; color: var(--accent); }
+.mini-btn.del { color: var(--danger); padding: 3px 7px; }
+.rule-area { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.rule-area .chk { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.rule-note { font-size: 10px; color: #888; flex-basis: 100%; }
+
 /* ---- options / actions ---- */
 .options .chk { font-size: 13px; }
 .actions { display: flex; align-items: center; gap: 14px; margin: 4px 0 20px; }
